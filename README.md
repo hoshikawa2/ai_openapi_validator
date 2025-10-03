@@ -337,3 +337,7 @@ Este manual cobre:
 - Como **executar passo a passo** e interpretar os resultados.  
 
 👉 Assim você consegue automatizar a validação e correção de especificações OpenAPI de forma padronizada, com governança e flexibilidade.
+
+## Acknowledgments
+
+- **Author** - Cristiano Hoshikawa (Oracle LAD A-Team Solution Engineer)
