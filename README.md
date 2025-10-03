@@ -107,7 +107,141 @@ Cada regra é um objeto JSON com os seguintes campos:
 
 ---
 
-## 6. Execução Determinística x Execução via LLM
+
+## 6. Tipos de Operações de Regras
+
+Cada regra em `rules.json` possui um campo **op** que define como a validação ou correção deve ser aplicada.  
+Abaixo estão os principais tipos suportados pela ferramenta:
+
+---
+
+## ✅ ensure
+- **Objetivo:** Garantir que um campo exista na especificação.  
+- **Exemplo:** toda resposta deve ter o código `200`.  
+- **Configuração típica:**
+```json
+{
+  "op": "ensure",
+  "selector": "$.paths.*.*.responses",
+  "field": "200",
+  "check_text": "Responses devem conter 200"
+}
+```
+
+---
+
+## 🔤 regex
+- **Objetivo:** Validar formato de nomes de atributos, parâmetros ou chaves.  
+- **Exemplo:** parâmetros devem estar em `lowerCamelCase`.  
+- **Configuração típica:**
+```json
+{
+  "op": "regex",
+  "selector": "$.paths.*.*.parameters[*].name",
+  "field": "name",
+  "pattern": "^[a-z][a-zA-Z0-9]*$",
+  "check_text": "Parâmetros devem seguir lowerCamelCase"
+}
+```
+
+---
+
+## 🔗 value_regex
+- **Objetivo:** Validar conteúdo de valores string (URLs, padrões textuais).  
+- **Exemplo:** URLs de servidores devem começar com `http://Caminho_backend/`.  
+- **Configuração típica:**
+```json
+{
+  "op": "value_regex",
+  "selector": "$.servers[*].url",
+  "field": "url",
+  "pattern": "^http://Caminho_backend/.*$",
+  "value": "http://Caminho_backend/api/fees/v2",
+  "check_text": "URL deve iniciar com http://Caminho_backend/"
+}
+```
+
+---
+
+## 🎯 enum
+- **Objetivo:** Restringir valores a um conjunto fixo permitido.  
+- **Exemplo:** tipos de dados devem ser `string`, `integer`, `boolean`, `number`.  
+- **Configuração típica:**
+```json
+{
+  "op": "enum",
+  "selector": "$.components.schemas.*.properties.*",
+  "field": "type",
+  "value": ["string", "integer", "boolean", "number"],
+  "check_text": "Tipos devem estar no conjunto permitido"
+}
+```
+
+---
+
+## 📏 length
+- **Objetivo:** Validar comprimento de strings.  
+- **Exemplo:** CPF deve ter exatamente 11 caracteres.  
+- **Configuração típica:**
+```json
+{
+  "op": "length",
+  "selector": "$.components.schemas.*.properties",
+  "field": "*cpf*",
+  "value": {"min": 11, "max": 11},
+  "check_text": "CPF deve ter 11 caracteres"
+}
+```
+
+---
+
+## 🔄 update
+- **Objetivo:** Atualizar nomes de chaves ou valores.  
+- **Exemplo:** trocar `/investment-fund` por `/investment-funds`.  
+- **Configuração típica:**
+```json
+{
+  "op": "update",
+  "selector": "$.paths",
+  "field": "/investment-fund",
+  "value": "/investment-funds",
+  "check_text": "Endpoints devem estar no plural"
+}
+```
+
+---
+
+## 🔁 uniform_all
+- **Objetivo:** Garantir consistência de definição para campos repetidos em diferentes locais.  
+- **Exemplo:** `managerDocumentNumber` deve ter sempre `{type=string, maxLength=14}`.  
+- **Configuração típica:**
+```json
+{
+  "op": "uniform_all",
+  "selector": "$.components.schemas.*.properties",
+  "field": "*",
+  "check_text": "Campos iguais devem ter atributos consistentes"
+}
+```
+
+---
+
+## 🚨 unique
+- **Objetivo:** Garantir que valores não sejam duplicados.  
+- **Exemplo:** `operationId` deve ser único em todas as operações.  
+- **Configuração típica:**
+```json
+{
+  "op": "unique",
+  "selector": "$.paths.*.*",
+  "field": "operationId",
+  "check_text": "Cada operação deve ter operationId único"
+}
+```
+
+---
+
+## 7. Execução Determinística x Execução via LLM
 
 ### Determinística
 - Baseada em regras **fixas e previsíveis** (regex, ensure, enum, etc.).  
@@ -123,7 +257,7 @@ Cada regra é um objeto JSON com os seguintes campos:
 
 ---
 
-## 7. Como Executar
+## 8. Como Executar
 
 ### 1) Gerar regras a partir de PDF
 ```bash
