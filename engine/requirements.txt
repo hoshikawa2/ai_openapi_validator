@@ -1,0 +1,6 @@
+ruamel.yaml
+pypdf
+oracledb
+requests
+json-repair
+jsonpath-ng

@@ -1,0 +1,594 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "description": "Esta API será utilizada nos fluxos de agrupamentos de fundos de investimentos para tarifação nas operaçoes de gestores, via iMercado.",
+    "version": "2.0.0-rc3",
+    "title": "B3 iMercado Tarifação - API - Desenvolvido em .NET 6"
+  },
+  "servers": [
+    {
+      "url": "/Caminho-backend/api/fees/v2"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Investment Funds"
+    },
+    {
+      "name": "Grouping"
+    }
+  ],
+  "paths": {
+    "/investment-funds": {
+      "get": {
+        "tags": [
+          "Investment Funds"
+        ],
+        "summary": "Lista de  fundos de investimentos que estar disponível na base do CADFI registrados na CVM, fundos com status de Ativo para utilização.",
+        "operationId": "InvestmentFundResultReqGet",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "managerDocumentNumber",
+            "description": "Refere-se ao Documento CNPJ do Gestor em questão. Para o cliente com perfil  Gestor - 39  a informação deste campo deve ser pré preenchida a partir das informações disponíveis em seu login, cruzadas com seu CNPJ, apresentando este número no campo em questão. Obrigatório",
+            "schema": {
+              "type": "string",
+              "maxLength": 14
+            },
+            "required": true,
+            "example": "12345678901000"
+          },
+          {
+            "in": "query",
+            "name": "investimentFundDocumentNumber",
+            "description": "Documento do fundo de investimento a ser solicitado - CNPJ. O número do documento deve estar disponível na base do CADFI, associado a um fundo com status de  Ativo  para utilização. Este campo deve permanecer disponível para preenchimento ou colagem de informações para sua utilização.",
+            "schema": {
+              "type": "string",
+              "maxLength": 14
+            },
+            "required": false,
+            "example": "12345678901000"
+          },
+          {
+            "in": "query",
+            "name": "investiment-FundName",
+            "description": "Razão Social do Fundo - Esta informação deve espelhar o nome ou razão social disponível na base do CADFI, associado ao  Documento do fundo de investimento - CNPJ   em questão.",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "required": false,
+            "example": "FUNDO DE INVESTIMENTO RENDA FIXA CURTO PRAZO"
+          },
+          {
+            "in": "query",
+            "name": "groupingFundDateTime",
+            "description": "Este item deve registrar a data e hora que o agrupamento de um fundo tenha sido realizado. Este filtro deve ser aplicado especificamente aos fundos que já sofreram a ação de agrupamento, nao trazendo retorno para os fundos que estão  não agrupados  ou estão  agrupados em outro gestor  (Formato : YYYY-MM-DDTHH:MM:SSZ)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "example": "2024-01-01T08:00:00.0Z"
+          },
+          {
+            "in": "query",
+            "name": "groupingStatusCode",
+            "description": "As opções disponíveis neste campo devem representar os possíveis status associados ao processo de Agrupamento de Tarifação, delimitando ou indicando a ação disponível ou que pode ser tomada com o fundo em questão. A lista disponível deve conter as seguintes opções:  1 - Agrupado  2 - Desagrupado  3 - Inativo  4 - Agrupado com outro gestor ",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "enum": [
+                1,
+                2,
+                3,
+                4
+              ],
+              "minimum": 1,
+              "maximum": 4
+            },
+            "required": false,
+            "example": 1
+          },
+          {
+            "in": "query",
+            "name": "investmentFundClassification",
+            "description": "Classificação do fundo - Este campo deve permitir a utilização de filtro a partir de lista disponível para seleção.  Classificação do fundo  é atribuída pela CVM e baseia-se na composição geral da carteira do fundo em questão. Esta informação é obtida e disponibilizada no CADFI para consumo. Os filtros disponíveis para utilização totalizam 24 e seguem registrados ao lado. FMIA, FIC-FITVM, FITVM, FI, FMIA-CL, FIF, FMP-FGTS, FII, FIP, FIDC, FMIEE, FICART, FMAI, FACFIF, FIQ-FMIA, FIIM, FICE, FMP-FGTS CL, FPCE, FIEX, FUNCINE, FIFDIV, FAPI, FI-FGTS",
+            "schema": {
+              "type": "string",
+              "maxLength": 15
+            },
+            "required": false,
+            "example": "FIP"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentFundResult"
+                }
+              }
+            },
+            "headers": {
+              "x-v": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 9,
+                  "maxLength": 20
+                },
+                "required": true,
+                "description": "Versão da API. Ex: 1.0.0-rc1"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errors"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          },
+          "504": {
+            "description": "Gateway Timeout"
+          }
+        }
+      }
+    },
+    "/grouping/group": {
+      "post": {
+        "tags": [
+          "Grouping"
+        ],
+        "summary": "Agrupar fundos de investimentos registrados na CVM agrupamento por gestor, que de acordo com volume de fundos pode estabelecer faixas diferenciadas de tarifação na B3",
+        "operationId": "IncluirAgrupamentoCommandReqPost",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncluirAgrupamentoCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncluirAgrupamentoCommandResult"
+                }
+              }
+            },
+            "headers": {
+              "x-v": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 9,
+                  "maxLength": 20
+                },
+                "required": true,
+                "description": "Versão da API. Ex: 1.0.0-rc1"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errors"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          },
+          "504": {
+            "description": "Gateway Timeout"
+          }
+        }
+      }
+    },
+    "/grouping/ungroup": {
+      "put": {
+        "tags": [
+          "Grouping"
+        ],
+        "summary": "Desagrupar fundos de investimentos registrados na CVM desagrupamento por gestor, que de acordo com volume de fundos pode estabelecer faixas diferenciadas de tarifação na B3.",
+        "operationId": "ExcluirAgrupamentoCommandReqPut",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExcluirAgrupamentoCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcluirAgrupamentoCommandResult"
+                }
+              }
+            },
+            "headers": {
+              "x-v": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 9,
+                  "maxLength": 20
+                },
+                "required": true,
+                "description": "Versão da API. Ex: 1.0.0-rc1"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/errors"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          },
+          "504": {
+            "description": "Gateway Timeout"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "InvestmentFundResult": {
+        "required": [
+          "data",
+          "links"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvestmentFund"
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/Link"
+          }
+        }
+      },
+      "InvestmentFund": {
+        "type": "object",
+        "properties": {
+          "investmentFundClassification": {
+            "type": "string",
+            "maxLength": 15,
+            "description": "Classificação do fundo - Este campo deve permitir a utilização de filtro a partir de lista disponível para seleção.  Classificação do fundo  é atribuída pela CVM e baseia-se na composição geral da carteira do fundo em questão. Esta informação é obtida disponibilizada no CADFI para consumo e os filtros disponíveis para utilização totalizam 24 e seguem registrados ao lado. FMIA, FIC-FITVM, FITVM, FI, FMIA-CL, FIF, FMP-FGTS, FII, FIP, FIDC, FMIEE, FICART, FMAI, FACFIF, FIQ-FMIA, FIIM, FICE, FMP-FGTS CL, FPCE, FIEX, FUNCINE, FIFDIV, FAPI, FI-FGTS",
+            "example": "FIP"
+          },
+          "investimentFundDocumentNumber": {
+            "type": "string",
+            "maxLength": 14,
+            "description": "Documento do fundo de investimento a ser solicitado - CNPJ. O número do documento deve estar disponível na base do CADFI, associado a um fundo com status de  Ativo  para utilização. Este campo deve permanecer disponível para preenchimento ou colagem de informações para sua utilização.",
+            "example": "12345678901000"
+          },
+          "investimentFundName": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Razão Social do Fundo - Esta informação deve espelhar o nome ou razão social disponível na base do CADFI, associado ao  Documento do fundo de investimento - CNPJ  em questão.",
+            "example": "FUNDO INVESTIMENTOS LTDA"
+          },
+          "groupingCode": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Número sequencial. Este atributo é gerado pela B3 sendo composto por Código do Participante SINCAD + Número sequencial",
+            "example": 12341
+          },
+          "groupingStatusCode": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "minimum": 1,
+            "maximum": 4,
+            "description": "As opções disponíveis neste campo devem representar os possíveis status associados ao processo de Agrupamento de Tarifação, delimitando ou indicando a ação disponível ou que pode ser tomada com o fundo em questão. A lista disponível deve conter as seguintes opções:  1 - Agrupado  2 - Desagrupado  3 - Inativo  4 - Agrupado com outro gestor",
+            "example": 1
+          },
+          "userLogin": {
+            "type": "string",
+            "maxLength": 35,
+            "description": "Login do usuário do iMercado responsável pela última atualização no fundo",
+            "example": "josesilva"
+          },
+          "lastUpdateDateTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Última data e hora da atualização do agrupamento. (Formato : YYYY-MM-DDTHH:MM:SSZ)",
+            "example": "2024-01-01T08:00:00.0Z"
+          }
+        }
+      },
+      "IncluirAgrupamentoCommand": {
+        "required": [
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataIncluirAgrupamentoCommand"
+          }
+        }
+      },
+      "DataIncluirAgrupamentoCommand": {
+        "type": "object",
+        "properties": {
+          "managerDocumentNumber": {
+            "maxLength": 54,
+            "type": "string",
+            "description": "Refere-se ao Documento CNPJ do Gestor em questão. Para o cliente com perfil  Gestor - 39  a informação deste campo deve ser pré preenchida a partir das informações disponíveis em seu login, cruzadas com seu CNPJ, apresentando este número no campo em questão. Obrigatório",
+            "example": "12345678901000"
+          },
+          "investimentFunds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgrupamentoNotification"
+            },
+            "description": "Lista de Fundos para ser Agrupados",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request de Incluir Aglupamento"
+      },
+      "IncluirAgrupamentoCommandResult": {
+        "required": [
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataIncluirAgrupamentoCommandResult"
+          }
+        }
+      },
+      "DataIncluirAgrupamentoCommandResult": {
+        "type": "object",
+        "properties": {
+          "groupingCode": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Número sequencial. Este atributo é gerado pela B3 sendo composto por Código do Participante SINCAD + Número sequencial",
+            "example": 12341
+          }
+        }
+      },
+      "AgrupamentoNotification": {
+        "type": "object",
+        "properties": {
+          "investimentFundDocumentNumber": {
+            "type": "string",
+            "maxLength": 14,
+            "description": "Documento do fundo de investimento a ser solicitado - CNPJ. O número do documento deve estar disponível na base do CADFI, associado a um fundo com status de  Ativo  para utilização. Este campo deve permanecer disponível para preenchimento ou colagem de informações para sua utilização.",
+            "example": "12345678901000"
+          }
+        }
+      },
+      "ExcluirAgrupamentoCommand": {
+        "required": [
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataExcluirAgrupamentoCommand"
+          }
+        }
+      },
+      "DataExcluirAgrupamentoCommand": {
+        "type": "object",
+        "properties": {
+          "managerDocumentNumber": {
+            "maxLength": 14,
+            "type": "string",
+            "description": "Refere-se ao Documento CNPJ do Gestor em questão. Para o cliente com perfil  Gestor - 39  a informação deste campo deve ser pré preenchida a partir das informações disponíveis em seu login, cruzadas com seu CNPJ, apresentando este número no campo em questão. Obrigatório",
+            "example": "12345678901000"
+          },
+          "investimentFunds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DesagrupamentoNotification"
+            },
+            "description": "Lista de Fundos para ser Desagrupados"
+          }
+        }
+      },
+      "DesagrupamentoNotification": {
+        "type": "object",
+        "properties": {
+          "investimentFundDocumentNumber": {
+            "type": "string",
+            "maxLength": 14,
+            "description": "Documento do fundo de investimento a ser solicitado - CNPJ. O número do documento deve estar disponível na base do CADFI, associado a um fundo com status de  Ativo  para utilização. Este campo deve permanecer disponível para preenchimento ou colagem de informações para sua utilização.",
+            "example": "12345678901000"
+          }
+        }
+      },
+      "ExcluirAgrupamentoCommandResult": {
+        "required": [
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DataExcluirAgrupamentoCommandResult"
+          }
+        }
+      },
+      "DataExcluirAgrupamentoCommandResult": {
+        "type": "object",
+        "properties": {
+          "groupingCode": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Número sequencial. Este atributo é gerado pela B3 sendo composto por Código do Participante SINCAD + Número sequencial",
+            "example": 12341
+          }
+        }
+      },
+      "Error": {
+        "required": [
+          "code",
+          "title",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 10,
+            "description": "Código do erro de negócio."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Mensagem sucinta do erro de negócio."
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Informações complementares a respeito do erro de negócio."
+          }
+        }
+      },
+      "Link": {
+        "required": [
+          "self"
+        ],
+        "type": "object",
+        "properties": {
+          "self": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Link para a página atual."
+          },
+          "first": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Link para a primeira página."
+          },
+          "prev": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Link para a página anterior."
+          },
+          "next": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Link para a próxima página."
+          },
+          "last": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Link para a última página."
+          }
+        }
+      },
+      "errors": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}
