@@ -31,6 +31,8 @@ Benefícios:
   - **Execução determinística** → regras fixas aplicadas com JSONPath.  
   - **Execução via LLM** → detecção de inconsistências semânticas (plural, abreviações, nomes incoerentes).  
 
+> **Nota:** Importante utilizar máquinas com GPU NVidia para obter mais poder de processamento, uma vez que os processos que utilizam a LLM requerem recursos extremos para execução.
+
 ---
 
 ## 3. Arquitetura da Solução
