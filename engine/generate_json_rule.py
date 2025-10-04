@@ -119,13 +119,22 @@ def interpret_rule(rule_text: str, spec_text: str, idx: int):
 
     ⚠️ O campo `selector` deve ser **sempre compatível com a biblioteca jsonpath_ng** (JSONPath).
     - Sempre utilize a especificacão base para poder montar o selector
-    ⚠️ Nunca utilize pontos com números de versão (ex: v3.0.1).  
-    ⚠️ Nunca utilize campos concatenados com erro de digitação.  
+    ⚠️ Nunca utilize pontos com números de versão (ex: v3.0.1) no selector  
+    ⚠️ Nunca utilize campos concatenados com erro de digitação no selector
     ⚠️ Nunca use aspas dentro de selectors.  
     - Gerar **sempre** um único selector
-    
-    ⚠️ Não use: colchetes com aspas, caminhos compostos (`"a.b"`), nomes de versão (`openapi.v3.0.1`) ou operadores inexistentes.
-    Se a regra não permitir um JSONPath simples, use `"$.OTHER"`.
+    - Um selector NUNCA deve ter: colchetes com aspas, caminhos compostos (`"a.b"`), nomes de versão (`openapi.v3.0.1`) ou operadores inexistentes
+    ⚠️ O campo `selector` nunca pode conter:
+    - `*/*`
+    - `/#/`
+    - vírgulas `,`
+    - filtros `?(@...)`
+    - operadores `=`, `!=`, `OR`, `split()`
+    - nomes com `:` (ex: `ui:swagger`)
+    - `$ref` malformado (só use `$.components.schemas.*.$ref` ou `$.paths.*.*.responses.*.$ref`)
+    - tokens soltos (`example`, `ref`, etc.)
+    Se a regra sugerir algo que exija filtros, funções, múltiplos seletores ou operadores não suportados,
+    use exatamente: `"selector": "$.OTHER"`.
 
     ⚠️ REGRAS IMPORTANTES PARA O JSON FINAL:
     - Campos obrigatórios SEMPRE: 
