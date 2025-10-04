@@ -1,4 +1,4 @@
-# 📘 Manual and Tutorial – OpenAPI Validation Tool
+# 📘 AI OpenAPI Validation Tool: Apply your validation rules into an OpenAPI specification using AI
 
 ## 1. Introduction
 
