@@ -61,69 +61,55 @@ def analyze_with_llm_plural(spec_text: str) -> list[dict]:
 
     prompt = f"""
     You are a smart parser of OpenAPI/Swagger specifications.
-
+    
     Your task:
-    1. Carefully read the OpenAPI specification below.
-    2. Identify inconsistencies or improvements that cannot be handled deterministically
-    (e.g., plural vs. singular, inconsistent names, capitalization inconsistency,
-    terms that are too long or too short, semantic inconsistency). 3. For each case, create a JSON update rule with:
-    - rule_code: "LLMxx" (a unique code per suggested rule)
-    - summary: summary of the problem
-    - scope: level of the problem ("paths", "parameters", "schemas", "responses", "servers", etc.)
-    - op: always "update"
-    - selector: a JSONPath that points to where the problem occurs, being **ALWAYS** compatible with `jsonpath_ng`
-    - field: the name or key that should be replaced
-    - value: the new suggested (corrected) value
-    - check_text: explanatory text of the problem
-    - severity: "error" or "warning"
-    - autofix: always true
-    - hints: array of tips on how to avoid the problem
-    - oas_version: null
-
-    ⚠️ IMPORTANT RULES
-    - Respond **only with valid JSON** (an array of objects).
-    - All fields are required.
-    - Be precise: if you find "/investment-fund", suggest "/investment-funds".
-    - Don't invent endpoints or fields that don't exist in the specification.
-    - Use Portuguese for text fields (summary, check_text, hints).
-
-    ⚠️ FORMATTING RULES FOR JSONPATH_NG
-    - Always use an ABSOLUTE selector starting with `$.`
-    - Never use `$[0]` or index selectors right after `$`.
-    * If you need to access an array element, use the path to the list and then the index:
-    ✅ `$.paths["/users"].get.parameters[0].name`
-    - Never use square brackets with single quotes `['field']`. * For simple keys (without special characters): use `.field` → `$.info.version`
-    * For keys with special characters (e.g., `/`, `-`, space): use square brackets with double quotes →
-    ✅ `$.paths["/investment-fund"]`
-    - For indexes in arrays, use `[N]` directly, without a period before it:
-    ✅ `parameters[0].name`
-    ❌ `parameters.[0].name`
-    - The `selector` must point to the PARENT OBJECT.
-    - The `field` must contain the key that will be changed within this object.
-    - The `value` must be the new value.
-
-    Example of expected output:
-
+    1. Read the OpenAPI specification below.
+    2. Identify **all cases where operationId does not start with a verb in Portuguese infinitive form** 
+       (ex.: "IncluiAgrupamento..." → should be "IncluirAgrupamento...").
+    3. For each problem found, create a JSON update rule with:
+       - rule_code: "LLMxx" (unique per suggested rule)
+       - summary: short description of the problem (in Portuguese)
+       - scope: always "paths"
+       - op: always "update"
+       - selector: the JSONPath of the parent object of the problematic field (e.g., "$.paths[\"/grouping/group\"].post")
+       - field: the exact name of the field (e.g., "operationId")
+       - value: the corrected value (suggest the corrected verb in infinitive)
+       - check_text: explain why it is a problem
+       - severity: "error"
+       - autofix: true
+       - hints: tips to avoid the problem
+       - oas_version: null
+    
+    ⚠️ FORMATTING RULES
+    - Always return valid JSON (an array of objects).
+    - Always use absolute JSONPath starting with "$."
+    - For fields with special characters ("/", "-", etc.), use double quotes inside brackets: $.paths["/users"]
+    - The selector must always point to the parent object, and field must be the property to replace.
+    - Respond only with JSON, no explanations.
+    
+    Example output:
+    
     [
       {{
         "rule_code": "LLM01",
-        "summary": "Endpoints must be in the plural",
+        "summary": "operationId deve iniciar com verbo no infinitivo",
         "scope": "paths",
         "op": "update",
-        "selector": "$.paths",
-        "field": "/investment-fund",
-        "value": "/investment-funds",
-        "check_text": "Endpoints must be in the plural",
-        "severity": "warning",
+        "selector": "$.paths[\"/grouping/group\"].post",
+        "field": "operationId",
+        "value": "IncluirAgrupamentoCommandReqPost",
+        "check_text": "operationId precisa iniciar com verbo no infinitivo",
+        "severity": "error",
         "autofix": true,
-        "hints": ["Always use resource names in the plural, e.g. /customers, /orders"],
+        "hints": ["Sempre inicie operationId com verbos no infinitivo: Incluir, Excluir, Atualizar, Consultar"],
         "oas_version": null
       }}
     ]
-
+    
     Specification for analysis:
     {spec_text}
     """
+
 
     response = llm.invoke(prompt)
 
@@ -702,6 +688,17 @@ def validate_rule(rule, spec, autofix_enabled=False):
 
                 # 1. If it is a dictionary → rename key
                 if isinstance(parent, dict) and field in parent:
+                    if not isinstance(parent[field], (dict, list)):
+                        if parent[field] != value:
+                            results.append({
+                                "rule_code": rule["rule_code"],
+                                "path": str(m.full_path) + f".{field}",
+                                "message": f"{rule['check_text']} (replace '{parent[field]}' → '{value}')",
+                                "severity": rule["severity"]
+                            })
+                            if autofix:
+                                parent[field] = value
+                        continue
                     if value not in parent:  # only rename if it doesn't exist
                         results.append({
                             "rule_code": rule["rule_code"],
