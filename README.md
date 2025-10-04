@@ -74,7 +74,11 @@ flowchart TD
    - Ensures that selectors correctly locate fields in the OpenAPI specification.  
    - Example:  
      ```bash
-     python validate_selector.py spec.json "$.paths.*.*.responses"
+     python validate_selector.py spec.json rules.json [--only_errors]
+     
+     spec.json: your OAS specification
+     rules.json: your JSON rules to be tested
+     --only_errors: inform just selectors with errors 
      ```
 
 4. **`extract_OTHER_rules.py`**  
@@ -82,8 +86,11 @@ flowchart TD
    - Helps refine ambiguous rules not mapped to deterministic operations.  
    - Example:  
      ```bash
-     python extract_OTHER_rules.py rules.json
-     ```
+     python extract_OTHER_rules.py rules.json output.json
+
+     rules.json: your JSON rules to be tested
+     output.json: the JSON file with OTHER operations
+    ```
 
 ---
 
