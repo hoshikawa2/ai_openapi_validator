@@ -6,7 +6,7 @@ from jsonpath_ng import parse
 from jsonpath_ng.jsonpath import DatumInContext, Fields
 from ruamel.yaml import YAML
 
-# Regex para $.root['chave']<sufixo>
+# Regex for $.root['key']<suffix>
 _BRACKET_RE = re.compile(r"^\$\.(\w+)\['([^']+)'\](.*)$")
 
 def load_spec(path: str):
@@ -55,7 +55,7 @@ def validate_selectors(spec_path: str, rules_path: str, only_errors: bool = Fals
     results = []
     for rule in rules:
         selector = rule.get("selector")
-        rule_code = rule.get("rule_code", "SEM_CODIGO")
+        rule_code = rule.get("rule_code", "NO_CODE")
         try:
             matches = find_with_selector(selector, spec)
             results.append({
@@ -75,7 +75,7 @@ def validate_selectors(spec_path: str, rules_path: str, only_errors: bool = Fals
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Uso: python validate_selectors.py <spec.json|yaml> <rules.json> [--only-errors]")
+        print("Usage: python validate_selectors.py <spec.json|yaml> <rules.json> [--only-errors]")
         sys.exit(1)
 
     spec_path, rules_path = sys.argv[1], sys.argv[2]
@@ -83,9 +83,9 @@ if __name__ == "__main__":
 
     results = validate_selectors(spec_path, rules_path, only_errors)
 
-    print("\n=== RESULTADO DA VALIDAÇÃO ===")
+    print("\n=== VALIDATION RESULT ===")
     if not results:
-        print("Nenhum erro encontrado." if only_errors else "Tudo validado com sucesso.")
+        print("No errors found." if only_errors else "Everything validated successfully.")
     else:
         for r in results:
             if r["status"] == "OK":

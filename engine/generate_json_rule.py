@@ -9,7 +9,7 @@ import ruamel.yaml
 from collections import OrderedDict
 
 # -------------------------
-# 1. Extrair regras do PDF
+# 1. Extract rules from PDF
 # -------------------------
 def extract_rules_from_pdf(file_path: str):
     reader = PdfReader(file_path)
@@ -40,7 +40,7 @@ def detect_oas_version(text: str) -> str | None:
     return None
 
 # -------------------------
-# 2. Configurar LLM Ollama
+# 2. Configure LLM Ollama
 # -------------------------
 llm = ChatOllama(
     base_url="http://127.0.0.1:11434",
@@ -50,10 +50,10 @@ llm = ChatOllama(
 )
 
 # ---------------------------
-# Carregadores
+# Loaders
 # ---------------------------
 def load_spec(file_path: str):
-    """Carrega a especificação OpenAPI em JSON/YAML."""
+    """Loads the OpenAPI specification in JSON/YAML."""
     path = Path(file_path)
     yaml = ruamel.yaml.YAML(typ="safe")
 
@@ -67,229 +67,227 @@ def load_spec(file_path: str):
 # -------------------------
 def interpret_rule(rule_text: str, spec_text: str, idx: int):
     prompt = f"""
-    Você é um analisador de regras OpenAPI/Swagger.
+    You are an OpenAPI/Swagger rules parser.
 
-    Sua tarefa é:
-    1. Ler a regra abaixo.
-    2. Extrair o código da regra (ex: R32, R58, R01).
-    3. Classifique a regra em exatamente **um** dos seguintes tipos de operação:
-       [ensure, unique, regex, value_regex, enum, length, uniform_all, update, OTHER]
+    Your task is to:
+    1. Read the rule below.
+    2. Extract the rule code (e.g., R32, R58, R01).
+    3. Classify the rule as exactly **one** of the following operation types:
+    [ensure, unique, regex, value_regex, enum, length, uniform_all, update, OTHER]
 
-    ⚠️ Como escolher corretamente:
-    ### Instruções de como classificar `op`
+    ⚠️ How to choose correctly:
+    ### Instructions on how to classify `op`
 
-    - ensure: usado quando a regra exige que um campo exista.  
-      Exemplo: "Responses devem conter 200" → field="200".  
-      Exemplo: "Toda resposta deve ter description" → field="description".  
-      **Não inventar valores aleatórios (ex: ranges, -x). Apenas garantir a presença ou valor fixo.**
+    - ensure: Used when the rule requires a field to exist.
+    Examples:
+    "Responses must contain 200" → field="200"
+    "Every response must have a description" → field="description"
+    "Schemas and properties must have a description" → field="description"
+    ⚠️ Even if the field is described generically (e.g., *description*), always use op="ensure". 
+    **Do not invent random values (e.g., ranges, -x). Just ensure the presence or fixed value.**
 
-    - unique: usado quando a regra proíbe duplicação.  
-      Exemplo: "operationId deve ser único".  
+    - unique: Used when the rule prohibits duplication.
+    Example: "operationId must be unique."
 
-    - regex: usado para validar formato de nomes de atributos ou parâmetros.  
-      Deve incluir "pattern".  
-      Exemplo: "nomes devem estar em lowerCamelCase" → pattern="^[a-z][a-zA-Z0-9]*$".  
+    - regex: Used to validate the format of attribute or parameter names.
+    Must include "pattern".
+    Example: "names must be in lowerCamelCase" → pattern="^[a-z][a-zA-Z0-9]*$".
 
-    - value_regex: usado para validar conteúdo de um valor string (URLs, padrões textuais).  
-      Deve incluir "pattern" e, opcionalmente, "value" sugerido.  
-      Exemplo: "url deve começar com http://Caminho_backend/" → pattern="^http://Caminho_backend/.*$".  
+    - value_regex: Used to validate the content of a string value (URLs, textual patterns).
+    Must include "pattern" and, optionally, a suggested "value".
+    Example: "url must start with http://Backend_Path/" → pattern="^http://Backend_Path/.*$".
 
-    - enum: usado para regras que restringem valores a um conjunto fixo.  
-      Deve incluir "value" com lista de valores aceitos.  
-      Exemplo: "type deve ser string, integer ou boolean".  
+    - enum: Used for rules that restrict values to a fixed set.
+    Must include "value" with a list of accepted values.
+    Example: "type must be string, integer, or boolean".
 
-    - length: usado para validar tamanho de strings.  
-      Deve incluir "value": {{"min": X, "max": Y}}.  
-      Exemplo: "CPF deve ter exatamente 11 caracteres".  
+    - length: Used to validate string length.
+    Must include "value": {{"min": X, "max": Y}}.
+    Example: "CPF must have exactly 11 characters."
 
-    - uniform_all: usado quando a regra exige consistência entre definições repetidas.  
-      Exemplo: "Campos com mesmo nome devem ter a mesma configuração".  
+    - uniform_all: Used when the rule requires consistency between repeated definitions.
+    Example: "Fields with the same name must have the same configuration."
 
-    - update: usado quando se torna necessário atualizar o nome de atributo ou parametro por outro
-      Exemplo: "Endpoints devem estar no plural", "Trocar o nome do atributo", "Atualizar o atributo por"  
+    - update: Used when it becomes necessary to update the attribute or parameter name with another one.
+    Example: "Endpoints must be plural," "Replace the attribute name," "Update the attribute with"
 
-    - OTHER: se não se encaixar em nenhuma das categorias.  
+    - other: If it does not fit into any of the categories.
 
-    ⚠️ Campos adicionais:
-    - Se a regra mencionar métodos HTTP específicos (GET, POST, PUT, PATCH, DELETE), inclua `"methods": ["get", "post", ...]`.
-    - scope deve ser um entre: "responses", "parameters", "schema", "schema properties", "operations", "servers", "OTHER".
-    - field deve ser o campo alvo ou "*" se genérico. Nunca gerar mais de um field
-    - severity deve ser "error" ou "warning".
-    - autofix sempre booleano.
+    ⚠️ Additional fields:
+    - If the rule mentions specific HTTP methods (GET, POST, PUT, PATCH, DELETE), include `"methods": ["get", "post", ...]`.
+    - scope must be one of: "responses", "parameters", "schema", "schema properties", "operations", "servers", "OTHER".
+    - field must be the target field or "*" if generic. Never generate more than one field.
+    - severity must be "error" or "warning".
+    - autofix must always be Boolean.
 
-    ⚠️ O campo `selector` deve ser **sempre compatível com a biblioteca jsonpath_ng** (JSONPath).
-    - Sempre utilize a especificacão base para poder montar o selector
-    ⚠️ Nunca utilize pontos com números de versão (ex: v3.0.1) no selector  
-    ⚠️ Nunca utilize campos concatenados com erro de digitação no selector
-    ⚠️ Nunca use aspas dentro de selectors.  
-    - Gerar **sempre** um único selector
-    - Um selector NUNCA deve ter: colchetes com aspas, caminhos compostos (`"a.b"`), nomes de versão (`openapi.v3.0.1`) ou operadores inexistentes
-    ⚠️ O campo `selector` nunca pode conter:
+    ⚠️ The `selector` field must always be compatible with the jsonpath_ng library (JSONPath). - Always use the base specification to build the selector.
+    ⚠️ Never use periods with version numbers (e.g., v3.0.1) in the selector.
+    ⚠️ Never use concatenated fields with typos in the selector.
+    ⚠️ Never use quotes within selectors.
+    - Always generate a single selector.
+    - A selector should NEVER contain: square brackets with quotes, compound paths (`"a.b"`), version names (`openapi.v3.0.1`), or non-existent operators.
+    ⚠️ The `selector` field can never contain:
     - `*/*`
     - `/#/`
-    - vírgulas `,`
-    - filtros `?(@...)`
-    - operadores `=`, `!=`, `OR`, `split()`
-    - nomes com `:` (ex: `ui:swagger`)
-    - `$ref` malformado (só use `$.components.schemas.*.$ref` ou `$.paths.*.*.responses.*.$ref`)
-    - tokens soltos (`example`, `ref`, etc.)
-    Se a regra sugerir algo que exija filtros, funções, múltiplos seletores ou operadores não suportados,
-    use exatamente: `"selector": "$.OTHER"`.
+    - commas `,`
+    - filters `?(@...)`
+    - operators `=`, `!=`, `OR`, `split()`
+    - names with `:` (e.g., `ui:swagger`)
+    - malformed `$ref` (only use `$.components.schemas.*.$ref` or `$.paths.*.*.responses.*.$ref`)
+    - stray tokens (`example`, `ref`, etc.)
+    If the rule suggests something that requires filters, functions, multiple selectors, or unsupported operators,
+    use exactly: `"selector": "$.OTHER"`.
 
-    ⚠️ REGRAS IMPORTANTES PARA O JSON FINAL:
-    - Campos obrigatórios SEMPRE: 
-      rule_code, summary, scope, op, selector, field, check_text, severity, hints, autofix
-    - O campo `op` é **sempre obrigatório**. Se não souber qual usar, defina `op`: "OTHER"`.
-    - Não deixe nenhum campo em branco ou faltando.
-    - Se `op` = "regex" ou "value_regex", inclua também `pattern`.
-    - Se `op` = "enum", inclua também `value` como lista de valores.
-    - Se `op` = "length", inclua também `value` no formato {{"min": X, "max": Y}}.
-    - Se `op` = "uniform_all", não há `pattern` ou `value`, apenas `check_text`.
-    - Se `op` = "update", não há `pattern` apenas o campo `field` que deve conter o valor original a ser atualizado e o campo `value` que é **obrigatório** e deve conter o novo valor de substituição.
+    ⚠️ IMPORTANT RULES FOR THE FINAL JSON:
+    - ALWAYS required fields:
+    rule_code, summary, scope, op, selector, field, check_text, severity, hints, autofix
+    - The `op` field is **always required**. If you're unsure which to use, set `op`: "OTHER".
+    - Don't leave any fields blank or missing.
+    - If `op` = "regex" or "value_regex", also include `pattern`.
+    - If `op` = "enum", also include `value` as a list of values.
+    - If `op` = "length", also include `value` in the format {{"min": X, "max": Y}}.
+    - If `op` = "uniform_all", there is no `pattern` or `value`, only `check_text`. - If `op` = "update", there is no `pattern`, just the `field` field which must contain the original value to be updated and the `value` field which is **required** and must contain the new replacement value.
 
-    ⚠️ Estilo:
-    - O JSON deve estar em **português** nos campos textuais (summary, check_text, hints).
-    - Nunca omita campos, mesmo que precise usar valores plausíveis.
+    ⚠️ Style:
+    - Never omit fields, even if you need to use plausible values.
 
-    Exemplos válidos:
+    ⚠️ Output JSON MUST have all human-readable text fields (summary, check_text, hints) written in Portuguese, regardless of the input language
+
+    Valid examples:
 
     - ensure:
     {{
-      "rule_code": "R01",
-      "summary": "Responses devem conter 200",
-      "scope": "responses",
-      "op": "ensure",
-      "selector": "$.paths.*.*.responses",
-      "field": "200",
-      "check_text": "Todas as operações devem ter response 200",
-      "severity": "error",
-      "autofix": true,
-      "hints": ["Adicione responses.200 com description"]
+        "rule_code": "R01",
+        "summary": "Responses must contain 200",
+        "scope": "responses",
+        "op": "ensure",
+        "selector": "$.paths.*.*.responses",
+        "field": "200",
+        "check_text": "All operations must have a 200 response",
+        "severity": "error",
+        "autofix": true,
+        "hints": ["Add responses.200 with description"]
     }}
 
     - unique:
     {{
-      "rule_code": "R07",
-      "summary": "operationId deve ser único",
-      "scope": "operations",
-      "op": "unique",
-      "selector": "$.paths.*.*",
-      "field": "operationId",
-      "check_text": "Cada operação deve ter operationId único",
-      "severity": "error",
-      "autofix": true,
-      "hints": ["Renomeie operationIds duplicados"]
+        "rule_code": "R07",
+        "summary": "operationId must be unique",
+        "scope": "operations",
+        "op": "unique",
+        "selector": "$.paths.*.*",
+        "field": "operationId",
+        "check_text": "Each operation must have a unique operationId",
+        "severity": "error",
+        "autofix": true,
+        "hints": ["Rename duplicate operationIds"]
     }}
 
     - regex:
     {{
-      "rule_code": "R52",
-      "summary": "Parâmetros em lowerCamelCase",
-      "scope": "parameters",
-      "op": "regex",
-      "selector": "$.paths.*.*.parameters[*].name",
-      "pattern": "^[a-z][a-zA-Z0-9]*$",
-      "field": "name",
-      "check_text": "Parâmetros devem seguir lowerCamelCase",
-      "severity": "warning",
-      "autofix": true,
-      "hints": ["Exemplo: investmentFundName"]
+        "rule_code": "R52",
+        "summary": "Parameters in lowerCamelCase",
+        "scope": "parameters",
+        "op": "regex",
+        "selector": "$.paths.*.*.parameters[*].name",
+        "pattern": "^[a-z][a-zA-Z0-9]*$",
+        "field": "name",
+        "check_text": "Parameters must follow lowerCamelCase",
+        "severity": "warning",
+        "autofix": true,
+        "hints": ["Example: investmentFundName"]
     }}
 
     - value_regex:
     {{
-      "rule_code": "R52",
-      "summary": "URLs devem começar com http://Caminho_backend/",
-      "scope": "servers",
-      "op": "value_regex",
-      "selector": "$.servers[*].url",
-      "pattern": "^http://Caminho_backend/.*$",
-      "field": "url",
-      "check_text": "O campo 'url' deve começar com 'http://Caminho_backend/'",
-      "severity": "error",
-      "autofix": true,
-      "value": "http://Caminho_backend/api/fees/v2",
-      "hints": ["Corrija o valor para iniciar com http://Caminho_backend/"]
+        "rule_code": "R52",
+        "summary": "URLs must start with http://Backend_path/",
+        "scope": "servers",
+        "op": "value_regex",
+        "selector": "$.servers[*].url",
+        "pattern": "^http://Backend_path/.*$",
+        "field": "url",
+        "check_text": "The 'url' field must start with 'http://Backend_path/'",
+        "severity": "error",
+        "autofix": true,
+        "value": "http://Backend_path/api/fees/v2",
+        "hints": ["Fix the value to start with http://Backend_path/"]
     }}
 
     - enum:
     {{
-      "rule_code": "R05",
-      "summary": "Tipo deve estar no conjunto permitido",
-      "scope": "schema properties",
-      "op": "enum",
-      "selector": "$.components.schemas.*.properties.*",
-      "field": "type",
-      "value": ["string", "integer", "boolean", "number"],
-      "check_text": "Tipos devem estar no conjunto permitido",
-      "severity": "error",
-      "autofix": true,
-      "hints": ["Verifique se 'type' segue o padrão JSON Schema"]
+        "rule_code": "R05",
+        "summary": "Type must be in the allowed set",
+        "scope": "schema properties",
+        "op": "enum",
+        "selector": "$.components.schemas.*.properties.*",
+        "field": "type",
+        "value": ["string", "integer", "boolean", "number"],
+        "check_text": "Types must be in the allowed set",
+        "severity": "error",
+        "autofix": true,
+        "hints": ["Check if 'type' follows the JSON Schema standard"]
     }}
 
     - length:
     {{
-      "rule_code": "R11",
-      "summary": "CPF deve ter 11 caracteres",
-      "scope": "schema properties",
-      "op": "length",
-      "selector": "$.components.schemas.*.properties",
-      "field": "*cpf*",
-      "value": {{"min": 11, "max": 11}},
-      "check_text": "Qualquer campo que contenha 'cpf' no nome deve ter exatamente 11 caracteres",
-      "severity": "error",
-      "autofix": true,
-      "hints": ["Defina minLength=11 e maxLength=11"]
+        "rule_code": "R11",
+        "summary": "CPF must have 11 characters",
+        "scope": "schema properties",
+        "op": "length",
+        "selector": "$.components.schemas.*.properties",
+        "field": "*cpf*",
+        "value": {{"min": 11, "max": 11}},
+        "check_text": "Any field containing 'cpf' in the name must have exactly 11 characters",
+        "severity": "error",
+        "autofix": true,
+        "hints": ["Set minLength=11 and maxLength=11"]
     }}
 
     - uniform_all:
     {{
-      "rule_code": "R58",
-      "summary": "Propriedades com mesmo nome devem ter definição uniforme",
-      "scope": "schema+parameters",
-      "op": "uniform_all",
-      "selector": "$.components.schemas.*.properties",
-      "field": "*",
-      "check_text": "Campos iguais em diferentes locais devem ter os mesmos atributos",
-      "severity": "error",
-      "autofix": true,
-      "hints": ["Exemplo: managerDocumentNumber deve ter sempre {{type=string, maxLength=14}}"]
+        "rule_code": "R58",
+        "summary": "Properties with the same name must have a uniform definition",
+        "scope": "schema+parameters",
+        "op": "uniform_all",
+        "selector": "$.components.schemas.*.properties",
+        "field": "*",
+        "check_text": "Fields that are the same in different locations must have the same attributes",
+        "severity": "error",
+        "autofix": true,
+        "hints": ["Example: managerDocumentNumber must always have {{type=string, maxLength=14}}"]
     }}
 
     - update:
     {{
-    "rule_code": "LLM01",
-    "summary": "Endpoints devem estar no plural",
-    "scope": "paths",
-    "op": "update",
-    "selector": "$.paths",
-    "field": "/investment-fund",
-    "value": "/investment-funds",
-    "check_text": "Endpoints devem estar no plural",
-    "severity": "warning",
-    "autofix": true,
-    "hints": ["Use nomes de recursos sempre no plural"]
+        "rule_code": "LLM01",
+        "summary": "Endpoints must be plural",
+        "scope": "paths",
+        "op": "update",
+        "selector": "$.paths",
+        "field": "/investment-fund",
+        "value": "/investment-funds",
+        "check_text": "Endpoints must be plural",
+        "severity": "warning",
+        "autofix": true,
+        "hints": ["Always use resource names in the plural"]
     }}
-      
-    Regra {idx}:
+
+    Rule {idx}:
     {rule_text}
 
-    Especificação Base:
+    Base specification:
     {spec_text}
 
-    Responda apenas com JSON válido.
+    Respond only with valid JSON.
     """
 
     response = llm.invoke(prompt)
 
     raw = response.content.strip()
 
-    # print(f"\n--- Resposta crua da LLM para regra {idx} ---")
-    # print(raw)
-    # print("--------------------------------------------")
-
     if not raw:
-        raise ValueError(f"Resposta vazia da LLM para regra {idx}")
+        raise ValueError(f"LLM's empty response to rule {idx}")
 
     # Extrair apenas o JSON
     start = raw.find("{")
@@ -298,23 +296,23 @@ def interpret_rule(rule_text: str, spec_text: str, idx: int):
         # raise ValueError(f"Nenhum JSON encontrado (regra {idx})")
         return {
             "rule_code": f"R_FAIL_{idx}",
-            "summary": "Falha ao interpretar",
+            "summary": "Failure to interpret",
             "scope": "OTHER",
             "op": "OTHER",
             "selector": "$",
             "field": "*",
-            "check_text": "Erro ao decodificar regra",
+            "check_text": "Error decoding rule",
             "severity": "error",
-            "hints": ["Revisar manualmente"],
+            "hints": ["Manually review"],
             "autofix": False
         }
 
     raw_json = raw[start:end]
 
     def sanitize(text: str) -> str:
-        text = text.replace("'", '"')  # força aspas duplas
-        text = re.sub(r",(\s*[}\]])", r"\1", text)  # remove vírgula sobrando
-        text = text.replace("\\", "\\\\")  # corrige escapes
+        text = text.replace("'", '"')  
+        text = re.sub(r",(\s*[}\]])", r"\1", text)  
+        text = text.replace("\\", "\\\\")  
         return text
 
     try:
@@ -322,50 +320,50 @@ def interpret_rule(rule_text: str, spec_text: str, idx: int):
         rule_obj["oas_version"] = detect_oas_version(rule_text)
         return rule_obj
     except json.JSONDecodeError:
-        print(f"⚠️ JSON inválido na regra {idx}, tentando corrigir...")
+        print(f"⚠️ Invalid JSON in rule {idx}, trying to fix...")
         safe = sanitize(raw_json)
         try:
             rule_obj = json.loads(safe)
             rule_obj["oas_version"] = detect_oas_version(rule_text)
             return rule_obj
         except json.JSONDecodeError as e:
-            print(f"❌ Falha ao corrigir JSON da regra {idx}: {e}")
+            print(f"❌ Failed to fix rule JSON {idx}: {e}")
             return {
                 "rule_code": f"R_FAIL_{idx}",
                 "oas_version": None,
-                "summary": "Falha ao interpretar",
+                "summary": "Failure to interpret",
                 "scope": "OTHER",
                 "op": "OTHER",
                 "selector": "$",
                 "field": "*",
-                "check_text": "Erro ao decodificar regra",
+                "check_text": "Error decoding rule",
                 "severity": "error",
-                "hints": ["Revisar manualmente"],
+                "hints": ["Manually review"],
                 "autofix": False
             }
 
 # -------------------------
-# 4. Orquestrar pipeline
+# 4. Orquestrate pipeline
 # -------------------------
 def process_pdf_with_llm(pdf_file: str, spec_text: str, output_file="rules.json"):
     rules_texts = extract_rules_from_pdf(pdf_file)
     results = []
 
-    for idx, rule_text in enumerate(tqdm(rules_texts, desc="Processando regras"), start=1):
+    for idx, rule_text in enumerate(tqdm(rules_texts, desc="Processing rules"), start=1):
         rule_json = interpret_rule(rule_text, spec_text, idx)
         results.append(rule_json)
 
-        # imprime na tela a regra e o json correspondente
-        print("\n📌 Regra encontrada:")
+        # prints the rule and the corresponding json on the screen
+        print("\n📌 Rule found:")
         print(rule_text)
-        print("➡️ JSON gerado:")
+        print("➡️ Generated JSON:")
         print(json.dumps(rule_json, indent=2, ensure_ascii=False))
 
     Path(output_file).write_text(
         json.dumps(results, indent=2, ensure_ascii=False),
         encoding="utf-8"
     )
-    print(f"\n✅ {len(results)} regras exportadas → {output_file}")
+    print(f"\n✅ {len(results)} exported rules → {output_file}")
 
 
 # -------------------------

@@ -1,344 +1,375 @@
+# 📘 Manual and Tutorial – OpenAPI Validation Tool
 
-# 📘 Manual e Tutorial – Ferramenta de Validação OpenAPI
+## 1. Introduction
 
-## 1. Introdução
+Companies that use **standardized APIs (OpenAPI/Swagger)** face common problems:
 
-Empresas que utilizam **APIs padronizadas (OpenAPI/Swagger)** enfrentam problemas comuns:
+- Inconsistent specifications across teams.  
+- Endpoints with divergent naming conventions (plural vs singular, camelCase vs snake_case).  
+- Missing mandatory fields (e.g., `200 response`, `description`).  
+- Version differences between **OAS2 (Swagger 2.0)** and **OAS3 (OpenAPI 3.x)**.  
+- Business rules documented in PDFs but difficult to apply automatically.  
 
-- Especificações inconsistentes entre times.  
-- Endpoints com nomenclaturas divergentes (plural vs singular, camelCase vs snake_case).  
-- Falta de campos obrigatórios (ex.: `200 response`, `description`).  
-- Diferenças de versão entre **OAS2 (Swagger 2.0)** e **OAS3 (OpenAPI 3.x)**.  
-- Regras de negócio documentadas em PDFs, mas difíceis de aplicar automaticamente.  
+👉 This tool solves this by **validating and automatically correcting OpenAPI specifications** based on a set of **atomic rules** in JSON.  
 
-👉 A ferramenta resolve isso **validando e corrigindo automaticamente especificações OpenAPI** a partir de um conjunto de **regras atômicas** em JSON.  
-
-Benefícios:
-- Conformidade automática com regras internas de governança.  
-- Correção automática com **autofix**.  
-- Integração com **LLM (Ollama + LangChain)** para detectar inconsistências semânticas não cobertas por regras determinísticas.  
-
----
-
-## 2. Tecnologias e Técnicas Utilizadas
-
-- **Python 3** – base da aplicação.  
-- **Ollama + LangChain** – processamento via modelo LLM (`mistral:instruct`).  
-- **jsonpath_ng** – seleção de trechos específicos dentro da especificação.  
-- **ruamel.yaml** – suporte a YAML (além de JSON).  
-- **PyPDF2 + tqdm** – extração de regras de documentos PDF e processamento em lote.  
-- **Arquitetura híbrida**:
-  - **Execução determinística** → regras fixas aplicadas com JSONPath.  
-  - **Execução via LLM** → detecção de inconsistências semânticas (plural, abreviações, nomes incoerentes).  
-
-> **Nota:** Importante utilizar máquinas com GPU NVidia para obter mais poder de processamento, uma vez que os processos que utilizam a LLM requerem recursos extremos para execução.
+Benefits:
+- Automatic compliance with internal governance rules.  
+- Automatic correction with **autofix**.  
+- Integration with **LLM (Ollama + LangChain)** to detect semantic inconsistencies not covered by deterministic rules.  
 
 ---
 
-## 3. Arquitetura da Solução
+## 2. Technologies and Techniques Used
+
+- **Python 3** – application base.  
+- **Ollama + LangChain** – processing via LLM model (`mistral:instruct`).  
+- **jsonpath_ng** – selecting specific parts of the specification.  
+- **ruamel.yaml** – YAML support (in addition to JSON).  
+- **PyPDF2 + tqdm** – extracting rules from PDF documents and batch processing.  
+- **Hybrid architecture**:
+  - **Deterministic execution** → fixed rules applied with JSONPath.  
+  - **LLM execution** → detection of semantic inconsistencies (plural, abbreviations, incoherent names).  
+
+> **Note:** It is important to use machines with NVidia GPUs for more processing power, as LLM processes require significant computational resources.
+
+---
+
+## 3. Solution Architecture
 
 ```mermaid
 flowchart TD
-    A[PDFs de Regras] -->|extract_rules_from_pdf| B[generate_json_rule.py]
-    B -->|interpret_rule + Ollama| C[Arquivo rules.json]
+    A[PDF Rulebooks] -->|extract_rules_from_pdf| B[generate_json_rule.py]
+    B -->|interpret_rule + Ollama| C[rules.json File]
     C -->|load_rules| D[rules_dispatcher.py]
     D -->|validate_rule| E[report.json]
-    D -->|autofix| F[spec_corrigida.json]
+    D -->|autofix| F[corrected_spec.json]
     G[OpenAPI Spec JSON/YAML] -->|load_spec| D
+    C -->|filter op=OTHER| H[extract_OTHER_rules.py]
+    I[Test JSONPath Selectors] --> J[validate_selector.py]
+    J -->|verify selectors| C
 ```
 
-- **generate_json_rule.py** → lê PDFs, interpreta regras via LLM e gera `rules.json`.  
-- **rules_dispatcher.py** → aplica regras sobre a especificação OpenAPI, gera relatório (`report.json`) e opcionalmente corrige a spec (`spec_corrigida.json`).  
+- **generate_json_rule.py** → reads PDFs, interprets rules via LLM, and generates `rules.json`.  
+- **rules_dispatcher.py** → applies rules on the OpenAPI specification, generates a report (`report.json`), and optionally corrects the spec (`corrected_spec.json`).  
 
 ---
 
-## 4. Estrutura da Ferramenta
+## 4. Tool Structure
 
-### Principais Componentes
+### Main Components
 
 1. **`generate_json_rule.py`**  
-   - Extrai regras de documentos PDF.  
-   - Interpreta cada regra usando LLM.  
-   - Gera **rules.json**.  
+   - Extracts rules from PDF documents.  
+   - Interprets each rule using LLM.  
+   - Generates **rules.json**.  
 
 2. **`rules_dispatcher.py`**  
-   - Carrega **spec** (JSON/YAML).  
-   - Carrega regras (`rules.json`).  
-   - Aplica cada regra (determinística + LLM).  
-   - Gera **relatório (report.json)** e **spec corrigida (spec_corrigida.json)**.  
+   - Loads **spec** (JSON/YAML).  
+   - Loads rules (`rules.json`).  
+   - Applies each rule (deterministic + LLM).  
+   - Generates **report (report.json)** and **corrected spec (corrected_spec.json)**.  
+
+3. **`validate_selector.py`**  
+   - Tests and validates JSONPath selectors used in rules.  
+   - Ensures that selectors correctly locate fields in the OpenAPI specification.  
+   - Example:  
+     ```bash
+     python validate_selector.py spec.json "$.paths.*.*.responses"
+     ```
+
+4. **`extract_OTHER_rules.py`**  
+   - Identifies rules with `op=OTHER`.  
+   - Helps refine ambiguous rules not mapped to deterministic operations.  
+   - Example:  
+     ```bash
+     python extract_OTHER_rules.py rules.json
+     ```
 
 ---
 
-## 5. Estrutura do JSON de Ações (rules.json)
+## 5. Actions JSON Structure (rules.json)
 
-Cada regra é um objeto JSON com os seguintes campos:
+Each rule is a JSON object with the following fields:
 
-| Campo        | Descrição |
-|--------------|-----------|
-| **rule_code** | Código único da regra (ex: `R32`, `LLM01`). |
-| **summary**   | Resumo do problema detectado. |
-| **scope**     | Escopo da regra (`paths`, `parameters`, `schemas`, `responses`, `servers`). |
-| **op**        | Operação a ser executada (`ensure`, `regex`, `unique`, `enum`, `length`, `update`, `uniform_all`). |
-| **selector**  | Caminho JSONPath para encontrar o trecho da especificação. |
-| **field**     | Campo alvo da validação ou modificação. |
-| **value**     | Valor esperado ou sugerido (opcional, depende do `op`). |
-| **pattern**   | Expressão regular usada para validação (quando `op=regex` ou `value_regex`). |
-| **check_text**| Texto explicativo do problema. |
-| **severity**  | Severidade (`info`, `warning`, `error`). |
-| **autofix**   | Define se a regra pode ser corrigida automaticamente (`true`/`false`). |
-| **hints**     | Dicas de boas práticas. |
-| **oas_version** | Versão do OAS onde a regra se aplica (`oas2`, `oas3`, `null`). |
+| Field        | Description |
+|--------------|-------------|
+| **rule_code** | Unique rule code (e.g., `R32`, `LLM01`). |
+| **summary**   | Summary of the detected issue. |
+| **scope**     | Scope of the rule (`paths`, `parameters`, `schemas`, `responses`, `servers`). |
+| **op**        | Operation to be executed (`ensure`, `regex`, `unique`, `enum`, `length`, `update`, `uniform_all`). |
+| **selector**  | JSONPath expression to find the specification section. |
+| **field**     | Target field for validation or modification. |
+| **value**     | Expected or suggested value (optional, depends on `op`). |
+| **pattern**   | Regular expression used for validation (when `op=regex` or `value_regex`). |
+| **check_text**| Explanatory text of the issue. |
+| **severity**  | Severity (`info`, `warning`, `error`). |
+| **autofix**   | Defines whether the rule can be automatically fixed (`true`/`false`). |
+| **hints**     | Best practice hints. |
+| **oas_version** | OAS version where the rule applies (`oas2`, `oas3`, `null`). |
 
-### Exemplo
+### Example
 
 ```json
 {
   "rule_code": "R32",
-  "summary": "Responses devem conter 200",
+  "summary": "Responses must contain 200",
   "scope": "responses",
   "op": "ensure",
   "selector": "$.paths.*.*.responses",
   "field": "200",
-  "check_text": "Todas as operações devem ter response 200",
+  "check_text": "All operations must have response 200",
   "severity": "error",
   "autofix": true,
-  "hints": ["Adicione responses.200 com description"],
+  "hints": ["Add responses.200 with description"],
   "oas_version": "oas3"
 }
 ```
 
 ---
 
+## 6. Types of Rule Operations
 
-## 6. Tipos de Operações de Regras
-
-Cada regra em `rules.json` possui um campo **op** que define como a validação ou correção deve ser aplicada.  
-Abaixo estão os principais tipos suportados pela ferramenta:
+Each rule in `rules.json` has a field **op** that defines how validation or correction should be applied.  
+Below are the main types supported by the tool:
 
 ---
 
 ## ✅ ensure
-- **Objetivo:** Garantir que um campo exista na especificação.  
-- **Exemplo:** toda resposta deve ter o código `200`.  
-- **Configuração típica:**
+- **Objective:** Ensure that a field exists in the specification.  
+- **Example:** every response must have code `200`.  
+- **Typical configuration:**
 ```json
 {
   "op": "ensure",
   "selector": "$.paths.*.*.responses",
   "field": "200",
-  "check_text": "Responses devem conter 200"
+  "check_text": "Responses must contain 200"
 }
 ```
 
 ---
 
 ## 🔤 regex
-- **Objetivo:** Validar formato de nomes de atributos, parâmetros ou chaves.  
-- **Exemplo:** parâmetros devem estar em `lowerCamelCase`.  
-- **Configuração típica:**
+- **Objective:** Validate the format of attribute, parameter, or key names.  
+- **Example:** parameters must be in `lowerCamelCase`.  
+- **Typical configuration:**
 ```json
 {
   "op": "regex",
   "selector": "$.paths.*.*.parameters[*].name",
   "field": "name",
   "pattern": "^[a-z][a-zA-Z0-9]*$",
-  "check_text": "Parâmetros devem seguir lowerCamelCase"
+  "check_text": "Parameters must follow lowerCamelCase"
 }
 ```
 
 ---
 
 ## 🔗 value_regex
-- **Objetivo:** Validar conteúdo de valores string (URLs, padrões textuais).  
-- **Exemplo:** URLs de servidores devem começar com `http://Caminho_backend/`.  
-- **Configuração típica:**
+- **Objective:** Validate the content of string values (URLs, textual patterns).  
+- **Example:** server URLs must start with `http://Backend_path/`.  
+- **Typical configuration:**
 ```json
 {
   "op": "value_regex",
   "selector": "$.servers[*].url",
   "field": "url",
-  "pattern": "^http://Caminho_backend/.*$",
-  "value": "http://Caminho_backend/api/fees/v2",
-  "check_text": "URL deve iniciar com http://Caminho_backend/"
+  "pattern": "^http://Backend_path/.*$",
+  "value": "http://Backend_path/api/fees/v2",
+  "check_text": "URL must start with http://Backend_path/"
 }
 ```
 
 ---
 
 ## 🎯 enum
-- **Objetivo:** Restringir valores a um conjunto fixo permitido.  
-- **Exemplo:** tipos de dados devem ser `string`, `integer`, `boolean`, `number`.  
-- **Configuração típica:**
+- **Objective:** Restrict values to a fixed allowed set.  
+- **Example:** data types must be `string`, `integer`, `boolean`, `number`.  
+- **Typical configuration:**
 ```json
 {
   "op": "enum",
   "selector": "$.components.schemas.*.properties.*",
   "field": "type",
   "value": ["string", "integer", "boolean", "number"],
-  "check_text": "Tipos devem estar no conjunto permitido"
+  "check_text": "Types must be within the allowed set"
 }
 ```
 
 ---
 
 ## 📏 length
-- **Objetivo:** Validar comprimento de strings.  
-- **Exemplo:** CPF deve ter exatamente 11 caracteres.  
-- **Configuração típica:**
+- **Objective:** Validate string length.  
+- **Example:** CPF must have exactly 11 characters.  
+- **Typical configuration:**
 ```json
 {
   "op": "length",
   "selector": "$.components.schemas.*.properties",
   "field": "*cpf*",
   "value": {"min": 11, "max": 11},
-  "check_text": "CPF deve ter 11 caracteres"
+  "check_text": "CPF must have 11 characters"
 }
 ```
 
 ---
 
 ## 🔄 update
-- **Objetivo:** Atualizar nomes de chaves ou valores.  
-- **Exemplo:** trocar `/investment-fund` por `/investment-funds`.  
-- **Configuração típica:**
+- **Objective:** Update key names or values.  
+- **Example:** replace `/investment-fund` with `/investment-funds`.  
+- **Typical configuration:**
 ```json
 {
   "op": "update",
   "selector": "$.paths",
   "field": "/investment-fund",
   "value": "/investment-funds",
-  "check_text": "Endpoints devem estar no plural"
+  "check_text": "Endpoints must be plural"
 }
 ```
 
 ---
 
 ## 🔁 uniform_all
-- **Objetivo:** Garantir consistência de definição para campos repetidos em diferentes locais.  
-- **Exemplo:** `managerDocumentNumber` deve ter sempre `{type=string, maxLength=14}`.  
-- **Configuração típica:**
+- **Objective:** Ensure consistency of definitions for fields repeated in different places.  
+- **Example:** `managerDocumentNumber` must always be `{type=string, maxLength=14}`.  
+- **Typical configuration:**
 ```json
 {
   "op": "uniform_all",
   "selector": "$.components.schemas.*.properties",
   "field": "*",
-  "check_text": "Campos iguais devem ter atributos consistentes"
+  "check_text": "Identical fields must have consistent attributes"
 }
 ```
 
 ---
 
 ## 🚨 unique
-- **Objetivo:** Garantir que valores não sejam duplicados.  
-- **Exemplo:** `operationId` deve ser único em todas as operações.  
-- **Configuração típica:**
+- **Objective:** Ensure values are not duplicated.  
+- **Example:** `operationId` must be unique across all operations.  
+- **Typical configuration:**
 ```json
 {
   "op": "unique",
   "selector": "$.paths.*.*",
   "field": "operationId",
-  "check_text": "Cada operação deve ter operationId único"
+  "check_text": "Each operation must have a unique operationId"
 }
 ```
 
 ---
 
-## 7. Execução Determinística x Execução via LLM
+## 7. Deterministic Execution vs LLM Execution
 
-### Determinística
-- Baseada em regras **fixas e previsíveis** (regex, ensure, enum, etc.).  
-- Ideal para validações técnicas e estruturais.  
-- **Exemplo:** garantir que todo parâmetro siga `lowerCamelCase`.
+### Deterministic
+- Based on **fixed and predictable** rules (regex, ensure, enum, etc.).  
+- Ideal for technical and structural validations.  
+- **Example:** ensure every parameter follows `lowerCamelCase`.
 
 ### LLM (LangChain + Ollama)
-- Detecta **inconsistências semânticas** não cobertas por regras fixas.  
-- Exemplo: detectar se `/investment-fund` deveria ser `/investment-funds`.  
-- Gera novas regras dinâmicas (`LLMxx`) que são adicionadas ao pipeline.  
+- Detects **semantic inconsistencies** not covered by fixed rules.  
+- Example: detect if `/investment-fund` should be `/investment-funds`.  
+- Generates new dynamic rules (`LLMxx`) that are added to the pipeline.  
 
-👉 O modelo híbrido garante **precisão técnica** e **cobertura semântica**.  
+👉 The hybrid model ensures **technical precision** and **semantic coverage**.  
 
 ---
 
-## 8. Como Executar
+## 8. How to Run
 
-### 1) Gerar regras a partir de PDF
+### 1) Generate rules from PDF
 ```bash
-python generate_json_rule.py regras.pdf spec_base.json rules.json
+python generate_json_rule.py rules.pdf spec_base.json rules.json
 ```
 
-- `regras.pdf` → documento de regras.  
-- `spec_base.json` → especificação OpenAPI base.  
-- `rules.json` → arquivo de saída contendo as regras.  
+- `rules.pdf` → rules document.  
+- `spec_base.json` → base OpenAPI specification.  
+- `rules.json` → output file containing rules.  
 
 ---
 
-### 2) Rodar o validador
+### 2) Run the validator
 ```bash
 python rules_dispatcher.py spec.json rules.json --min-severity warning
 ```
 
-Parâmetros:
-- **spec.json|yaml** → especificação OpenAPI a validar.  
-- **rules.json** → regras geradas (determinísticas + LLM).  
-- **--min-severity** → nível mínimo de severidade a considerar (`info`, `warning`, `error`).  
+Parameters:
+- **spec.json|yaml** → OpenAPI specification to validate.  
+- **rules.json** → generated rules (deterministic + LLM).  
+- **--min-severity** → minimum severity level to consider (`info`, `warning`, `error`).  
 
-Saídas:
-- `report.json` → relatório de problemas encontrados.  
-- `spec_corrigida.json` → especificação corrigida (se `autofix` ativado).  
+Outputs:
+- `report.json` → report of identified issues.  
+- `corrected_spec.json` → corrected specification (if `autofix` enabled).  
 
 ---
 
-## 8. Exemplos de Uso
+## 8. Usage Examples
 
-### Exemplo 1 – Detectar parâmetros em `lowerCamelCase`
+### Example 1 – Detect parameters in `lowerCamelCase`
 ```json
 {
   "rule_code": "R52",
-  "summary": "Parâmetros em lowerCamelCase",
+  "summary": "Parameters in lowerCamelCase",
   "scope": "parameters",
   "op": "regex",
   "selector": "$.paths.*.*.parameters[*].name",
   "pattern": "^[a-z][a-zA-Z0-9]*$",
   "field": "name",
-  "check_text": "Parâmetros devem seguir lowerCamelCase",
+  "check_text": "Parameters must follow lowerCamelCase",
   "severity": "warning",
   "autofix": true,
-  "hints": ["Exemplo: investmentFundName"],
+  "hints": ["Example: investmentFundName"],
   "oas_version": null
 }
 ```
 
-### Exemplo 2 – Atualização sugerida por LLM
+### Example 2 – LLM-suggested update
 ```json
 {
   "rule_code": "LLM01",
-  "summary": "Endpoints devem estar no plural",
+  "summary": "Endpoints must be plural",
   "scope": "paths",
   "op": "update",
   "selector": "$.paths",
   "field": "/investment-fund",
   "value": "/investment-funds",
-  "check_text": "Endpoints devem estar no plural",
+  "check_text": "Endpoints must be plural",
   "severity": "warning",
   "autofix": true,
-  "hints": ["Use nomes de recursos sempre no plural"],
+  "hints": ["Always use resource names in plural"],
   "oas_version": null
 }
 ```
 
 ---
 
-# ✅ Conclusão
+## 9. Additional Procedures and Tools
 
-Este manual cobre:
+Beyond the main workflow, two supporting tools are included to improve rule extraction and validation:
 
-- O **problema de negócio** que a ferramenta resolve.  
-- **Arquitetura** híbrida com regras determinísticas e suporte a LLM.  
-- **Componentes** (`generate_json_rule.py` e `rules_dispatcher.py`).  
-- **Estrutura do JSON** de ações e exemplos.  
-- Como **executar passo a passo** e interpretar os resultados.  
+### **`validate_selector.py`**
+- Purpose: Tests and validates JSONPath selectors used inside the rules.  
+- Ensures selectors are correct before applying rules.  
 
-👉 Assim você consegue automatizar a validação e correção de especificações OpenAPI de forma padronizada, com governança e flexibilidade.
+### **`extract_OTHER_rules.py`**
+- Purpose: Identifies rules with operation `OTHER`.  
+- Helps refine rules not yet classified into deterministic operations.  
+
+---
+
+# ✅ Conclusion
+
+This manual covers:
+
+- The **business problem** the tool solves.  
+- **Hybrid architecture** with deterministic rules and LLM support.  
+- **Components** (`generate_json_rule.py` and `rules_dispatcher.py`).  
+- **JSON structure** of actions and examples.  
+- How to **run step by step** and interpret results.  
+
+👉 This way, you can automate the validation and correction of OpenAPI specifications in a standardized way, with governance and flexibility.
 
 ## Acknowledgments
 

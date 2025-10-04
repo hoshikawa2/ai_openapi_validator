@@ -1,0 +1,331 @@
+[
+   {
+      "rule_code":"R02",
+      "summary":"Mandatory description in responses",
+      "scope":"responses",
+      "op":"ensure",
+      "selector":"$.paths.*.*.responses.*",
+      "field":"description",
+      "check_text":"All responses must contain the 'description' field",
+      "severity":"error",
+      "hints":[
+         "Include a clear description in the response"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R03",
+      "summary":"Prohibit duplication of parameters",
+      "scope":"parameters",
+      "op":"unique",
+      "selector":"$.paths.*.*.parameters",
+      "field":"name",
+      "check_text":"No parameters allowed duplicates at the same level",
+      "severity":"error",
+      "hints":[
+         "Consolidate or rename duplicate parameters"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R04",
+      "summary":"CamelCase naming",
+      "scope":"schema properties",
+      "op":"regex",
+      "selector":"$.components.schemas.*.properties",
+      "field":"key",
+      "check_text":"All attribute names must be in camelCase",
+      "severity":"warning",
+      "hints":[
+         "Ex: customerId, orderDate"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R05",
+      "summary":"String type harmonization",
+      "scope":"schema properties",
+      "op":"enum",
+      "selector":"$.components.schemas.*.properties.*",
+      "field":"type",
+      "value":[
+         "string",
+         "integer",
+         "boolean",
+         "number",
+         "array",
+         "object"
+      ],
+      "check_text":"Types must follow the allowed set",
+      "severity":"error",
+      "hints":[
+         "Check if type is in the JSON Schema standard"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R06",
+      "summary":"Maximum length for sensitive strings",
+      "scope":"schema properties",
+      "op":"ensure",
+      "selector":"$.components.schemas.*.properties.*",
+      "field":"maxLength",
+      "check_text":"Fields such as CPF, CNPJ, and CEP must have their maxLength set correctly",
+      "severity":"error",
+      "hints":[
+         "CPF maxLength=11",
+         "CNPJ maxLength=14"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R07",
+      "summary":"operationId must be unique",
+      "scope":"operations",
+      "op":"unique",
+      "selector":"$.paths.*.*",
+      "field":"operationId",
+      "check_text":"Each operation must have a unique operationId",
+      "severity":"error",
+      "hints":[
+         "Rename duplicate operationIds"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R08",
+      "summary":"Required fields in schemas",
+      "scope":"schema",
+      "op":"ensure",
+      "selector":"$.components.schemas.*",
+      "field":"required",
+      "check_text":"Core schemas must declare required attributes",
+      "severity":"warning",
+      "hints":[
+         "Include required: [] with essential attributes"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R09",
+      "summary":"Required description in properties",
+      "scope":"schema properties",
+      "op":"ensure",
+      "selector":"$.components.schemas.*.properties.*",
+      "field":"description",
+      "check_text":"All schema properties must have description",
+      "severity":"warning",
+      "hints":[
+         "Provide a clear description for each field"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R10",
+      "summary":"Correct use of arrays",
+      "scope":"schema properties",
+      "op":"ensure",
+      "selector":"$.components.schemas.*.properties.*",
+      "field":"items",
+      "check_text":"Properties with type=array must define items",
+      "severity":"error",
+      "hints":[
+         "Example: {\"type\": \"array\", \"items\": {\"type\": \"string\"}}"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R32",
+      "summary":"GET, PUT and PATCH must have response 200",
+      "scope":"responses",
+      "op":"ensure",
+      "selector":"$.paths.*.*.responses",
+      "methods":[
+         "get",
+         "put",
+         "patch"
+      ],
+      "field":"200",
+      "check_text":"GET, PUT and PATCH must have response 200",
+      "severity":"error",
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R11",
+      "summary":"All fields related to CPF must have 11 characters",
+      "scope":"schema properties",
+      "op":"length",
+      "selector":"$.components.schemas.*.properties",
+      "field":"*cpf*",
+      "value":{
+         "min":11,
+         "max":11
+      },
+      "check_text":"Any field containing 'cpf' in the name must have exactly 11 characters",
+      "severity":"error",
+      "hints":[
+         "Set minLength=11 and maxLength=11"
+      ],
+      "autofix":true,
+      "oas_version":null
+   },
+   {
+      "rule_code":"R58",
+      "summary":"Properties with the same name must have a uniform definition",
+      "scope":"schema+parameters",
+      "op":"uniform_all",
+      "selector":"$.components.schemas.*.properties",
+      "check_text":"Fields with the same name in different locations must have the same attributes",
+      "severity":"error",
+      "autofix":true,
+      "hints":[
+         "Example: managerDocumentNumber must always have {type=string, maxLength=14}"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R58",
+      "summary":"Properties with the same name must have a uniform definition",
+      "scope":"schema+parameters",
+      "op":"uniform_all",
+      "selector":"$.paths.*.*.parameters[*]",
+      "check_text":"Equal fields in different locations must have the same attributes",
+      "severity":"error",
+      "autofix":true,
+      "hints":[
+         "Example: managerDocumentNumber must always have {type=string, maxLength=14}"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R52",
+      "summary":"Attribute and parameter names must follow lowerCamelCase",
+      "scope":"schemas+parameters",
+      "op":"regex",
+      "selector":"$..name",
+      "pattern":"^[a-z]+[a-zA-Z0-9]*$",
+      "check_text":"Names must follow lowerCamelCase (no hyphens, no underscores)",
+      "severity":"warning",
+      "autofix":true,
+      "hints":[
+         "Example: customerId, orderDate"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R52",
+      "summary":"URLs must start with http://Backend_path/",
+      "scope":"servers",
+      "op":"value_regex",
+      "selector":"$.servers[*].url",
+      "pattern":"^http://Backend_path/.*$",
+      "check_text":"The 'url' field must begin with 'http://Backend_path/'",
+      "severity":"error",
+      "autofix":true,
+      "value":"http://Backend_path/api/fees/v2",
+      "oas_version":null
+   },
+   {
+      "rule_code":"R52",
+      "summary":"Parameters must follow lowerCamelCase",
+      "scope":"parameters",
+      "op":"regex",
+      "selector":"$.paths.*.*.parameters[*].name",
+      "pattern":"^[a-z][a-zA-Z0-9]*$",
+      "check_text":"Parameter names must be in lowerCamelCase (no hyphen, no underscore)",
+      "severity":"error",
+      "autofix":true,
+      "hints":[
+         "Example: investmentFundName, customerId"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R0X",
+      "summary":"All operations must have a description in responses",
+      "scope":"responses",
+      "op":"ensure",
+      "selector":"$.paths.*.*.responses.*",
+      "field":"description",
+      "check_text":"All operations must have a description in responses",
+      "severity":"warning",
+      "autofix":true,
+      "hints":[
+         "Add a description for each response"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R15",
+      "summary":"Properties cannot have whitespace or invalid names containing 'version'",
+      "scope":"schema properties",
+      "op":"regex",
+      "selector":"$.components.schemas.*.properties",
+      "pattern":"^(?!\\s)(?!.*\\s)(?!.*version\\s).*",
+      "field":"key",
+      "check_text":"Property names cannot contain spaces or end in 'version'",
+      "severity":"error",
+      "autofix":true,
+      "hints":[
+         "Remove spaces from the property name",
+         "Avoid ambiguous names like 'version' or 'myVersion'"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"RXX",
+      "summary":"Endpoints must be plural",
+      "scope":"paths",
+      "op":"update",
+      "selector":"$.paths['/investment-fund']",
+      "field":"/investment-fund",
+      "value":"/investment-funds",
+      "check_text":"Endpoints must be plural",
+      "severity":"warning",
+      "autofix":true,
+      "hints":[
+         "Always use plural resource names"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R34",
+      "summary":"Info tag must contain the 'version' property",
+      "scope":"responses",
+      "op":"ensure",
+      "selector":"$.info",
+      "field":"version",
+      "check_text":"All responses must have the Info tag with the 'version' property",
+      "severity":"error",
+      "autofix":true,
+      "hints":[
+         "Add the 'version' property to the Info tag"
+      ],
+      "oas_version":null
+   },
+   {
+      "rule_code":"R36",
+      "summary":"Validates if the 'schemes' property is set",
+      "scope":"schemas",
+      "op":"ensure",
+      "selector":"$.components",
+      "field":"schemas",
+      "check_text":"Each server must have the 'schemes' property set",
+      "severity":"error",
+      "autofix":true,
+      "hints":[
+         "Add the 'schemes' property to each server"
+      ],
+      "oas_version":null
+   }
+]
