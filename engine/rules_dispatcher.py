@@ -58,34 +58,36 @@ def analyze_with_llm_plural(spec_text: str) -> list[dict]:
     Parses the entire OpenAPI specification using LLM
     and returns a JSON array of update rules.
     """
-
     prompt = f"""
     You are a smart parser of OpenAPI/Swagger specifications.
     
     Your task:
-    1. Read the OpenAPI specification below.
-    2. Identify **all cases where operationId does not start with a verb in Portuguese infinitive form** 
-       (ex.: "IncluiAgrupamento..." → should be "IncluirAgrupamento...").
-    3. For each problem found, create a JSON update rule with:
-       - rule_code: "LLMxx" (unique per suggested rule)
-       - summary: short description of the problem (in Portuguese)
-       - scope: always "paths"
-       - op: always "update"
-       - selector: the JSONPath of the parent object of the problematic field (e.g., "$.paths[\"/grouping/group\"].post")
-       - field: the exact name of the field (e.g., "operationId")
-       - value: the corrected value (suggest the corrected verb in infinitive)
-       - check_text: explain why it is a problem
+    1. Scan all operationId fields in the OpenAPI specification below.
+    2. If an operationId does not start with a verb in **Portuguese infinitive form** (e.g. "Aplicar", "Somar", "Atualizar", "Consultar", "Obter", "Listar"),
+       generate a JSON update rule correcting it.
+       - Examples:
+         - "AplicaAgrupamentoCommandReqPost" → "AplicarAgrupamentoCommandReqPost"
+         - "SomaAgrupamentoCommandReqPut" → "SomarAgrupamentoCommandReqPut"
+    
+    3. For each problem found, create a JSON object with:
+       - rule_code: "LLMxx"
+       - summary: in Portuguese
+       - scope: "paths"
+       - op: "update"
+       - selector: JSONPath of the parent object (e.g., $.paths["/grouping/group"].post)
+       - field: "operationId"
+       - value: corrected operationId
+       - check_text: explain the problem
        - severity: "error"
        - autofix: true
-       - hints: tips to avoid the problem
+       - hints: tips in Portuguese
        - oas_version: null
     
-    ⚠️ FORMATTING RULES
-    - Always return valid JSON (an array of objects).
-    - Always use absolute JSONPath starting with "$."
-    - For fields with special characters ("/", "-", etc.), use double quotes inside brackets: $.paths["/users"]
-    - The selector must always point to the parent object, and field must be the property to replace.
-    - Respond only with JSON, no explanations.
+    ⚠️ Rules:
+    - Always return a JSON array (no text around it).
+    - Always use absolute JSONPath starting with "$.".
+    - For keys with "/" or "-", use double quotes inside brackets (e.g., $.paths["/users"]).
+    - The selector must point to the parent, and field must be "operationId".
     
     Example output:
     
@@ -97,11 +99,11 @@ def analyze_with_llm_plural(spec_text: str) -> list[dict]:
         "op": "update",
         "selector": "$.paths[\"/grouping/group\"].post",
         "field": "operationId",
-        "value": "IncluirAgrupamentoCommandReqPost",
+        "value": "AtualizarAgrupamentoCommandReqPost",
         "check_text": "operationId precisa iniciar com verbo no infinitivo",
         "severity": "error",
         "autofix": true,
-        "hints": ["Sempre inicie operationId com verbos no infinitivo: Incluir, Excluir, Atualizar, Consultar"],
+        "hints": ["Use sempre verbos no infinitivo: Criar, Somar, Atualizar, Consultar, Obter, Listar"],
         "oas_version": null
       }}
     ]
