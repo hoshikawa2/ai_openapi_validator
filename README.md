@@ -63,6 +63,8 @@ flowchart TD
    - Interprets each rule using LLM.  
    - Generates **rules.json**.  
 
+> **Note:** generate_json_rule.py creates a formated JSON rule files with operations that can be executed on the rules_dispatcher.py code. The LLM will convert textual descriptions on the PDF file into a JSON action and could be not very precise, so you need to analyze each generated action before apply to your rules file. Pain attention to OTHER actions rules generated, because the LLM didn't find the  correct operation, so it probably needs to develop a specific LLM interpreting process.
+
 2. **`rules_dispatcher.py`**  
    - Loads **spec** (JSON/YAML).  
    - Loads rules (`rules.json`).  
