@@ -53,7 +53,7 @@ def load_rules(file_path: str):
 # ---------------------------
 # AI
 # ---------------------------
-def analyze_with_llm_plural(spec_text: str) -> list[dict]:
+def analyze_with_llm_infinitive(spec_text: str) -> list[dict]:
     """
     Parses the entire OpenAPI specification using LLM
     and returns a JSON array of update rules.
@@ -755,7 +755,7 @@ def run_validator(spec_file, rules_file,
     # AI
     # -----------------------------
     print(f"\n🤖 AI Processing")
-    ai_rules = analyze_with_llm_plural(spec)
+    ai_rules = analyze_with_llm_infinitive(spec)
     for r in ai_rules:
         r["selector"] = fix_selector(r["selector"])
         r["scope"] = fix_scope(r["scope"])
