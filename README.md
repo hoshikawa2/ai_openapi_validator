@@ -96,6 +96,39 @@ flowchart TD
      output.json: the JSON file with OTHER operations
     ```
 
+----
+
+## Process Flow – rules_dispatcher.py
+
+The rules_dispatcher.py script is the core engine that applies validation and correction rules to an OpenAPI/Swagger specification. Its main responsibilities are:
+1.	Load Input Files
+-	Reads the OpenAPI specification (spec.json or spec.yaml).
+-	Loads the rule set from rules.json (generated previously by generate_json_rule.py).
+2.	Iterate Through Rules
+-	Each rule in rules.json is parsed.
+-	Rules include both deterministic operations (ensure, regex, enum, etc.) and LLM-based rules (LLMxx).
+-	A dispatcher mechanism decides how to apply each rule type.
+3.	Apply Deterministic Rules
+-	For rules like ensure, regex, length, etc., the dispatcher uses JSONPath selectors to locate matching nodes in the specification.
+-	The validation is executed using Python logic (e.g., regex for naming conventions, field existence checks).
+-	If autofix = true, the script attempts to modify the specification automatically.
+4.	Apply LLM-Based Rules
+-	When a rule code starts with LLM (e.g., "LLM01": "Endpoints must be plural"), the dispatcher invokes an LLM integration (Ollama + LangChain).
+-	A custom prompt is built with the spec snippet, rule, and required correction.
+-	The LLM suggests updates that deterministic code cannot handle (e.g., semantic corrections like pluralization or coherence in naming).
+5.	Aggregate Results
+-	Validation results are collected into a report file (report.json), including rule code, severity, and explanation.
+-	If corrections were applied, a corrected specification (corrected_spec.json) is saved.
+6.	Output
+-	report.json → A log of all rules applied and issues found.
+-	corrected_spec.json → A fixed version of the OpenAPI spec (if autofix rules were triggered).
+
+
+🔑 Resume of rules_dispatcher.py
+-	It acts as the bridge between rules and specifications.
+-	Ensures consistency and compliance across APIs.
+-	Combines deterministic precision with LLM flexibility, making it possible to enforce both structural constraints and semantic improvements.
+
 ---
 
 ## 5. Actions JSON Structure (rules.json)
