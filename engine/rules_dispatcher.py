@@ -696,6 +696,10 @@ def validate_rule(rule, spec, autofix_enabled=False):
             for m in matches:
                 parent = m.value  # node corresponding to the selector
 
+                if isinstance(parent, dict) and field not in parent \
+                        and isinstance(m.context.value, dict) and field in m.context.value:
+                    parent = m.context.value
+
                 # 1. If it is a dictionary → rename key
                 if isinstance(parent, dict) and field in parent:
                     if value not in parent:  # only rename if it doesn't exist
