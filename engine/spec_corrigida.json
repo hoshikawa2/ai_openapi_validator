@@ -29,7 +29,7 @@
         "parameters": [
           {
             "in": "query",
-            "name": "managerDocumentNumber",
+            "investmentFundName": "managerDocumentNumber",
             "description": "Refere-se ao Documento CNPJ do Gestor em questão. Para o cliente com perfil  Gestor - 39  a informação deste campo deve ser pré preenchida a partir das informações disponíveis em seu login, cruzadas com seu CNPJ, apresentando este número no campo em questão. Obrigatório",
             "schema": {
               "type": "string",

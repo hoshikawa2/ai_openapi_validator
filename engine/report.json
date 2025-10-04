@@ -208,5 +208,11 @@
     "path": "paths./investment-funds.get.parameters.[2].name",
     "message": "Os nomes de parâmetros devem estar em lowerCamelCase (sem hífen, sem underscore): 'investiment-fundname'",
     "severity": "error"
+  },
+  {
+    "rule_code": "LLM02",
+    "path": "paths./investment-funds.get.parameters.[0]",
+    "message": "O campo 'investiment-FundName' deve ser 'investmentFundName' (renomear chave 'name' → 'investmentFundName')",
+    "severity": "error"
   }
 ]
