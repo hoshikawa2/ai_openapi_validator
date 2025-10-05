@@ -318,48 +318,47 @@ Below are the main types supported by the tool:
 
 👉 The hybrid model ensures **technical precision** and **semantic coverage**.  
 
-## 8. Why LLM is Needed for Semantic Rules (Plural Example)
+## 8. Why LLM is Needed for Semantic Rules (Infinitive Verb Example)
 
-Deterministic approaches (like JSONPath, regex, enum) are **excellent for structural validations** (e.g., checking if a field exists, ensuring camelCase, verifying maxLength).
+Deterministic approaches (like JSONPath, regex, enum) are excellent for structural validations (e.g., checking if a field exists, ensuring camelCase, verifying maxLength).
 
-However, some problems are **semantic**, not structural. For example:
+However, some problems are semantic, not structural. For example:
+- An operation createsCustomer should ideally be written in the infinitive form as createCustomer.
+- Regex or JSONPath cannot know whether a verb is in the infinitive form or conjugated.
+- Business context dictates this: operations should describe actions in infinitive form for consistency across APIs.
 
-- A path `/investment-fund` should ideally be `/investment-funds`.
-- Regex or JSONPath **cannot know** whether a resource name should be singular or plural.
-- Business context dictates this: endpoints typically represent **collections of resources** (plural).
+👉 This is why LLM-based rules are required. They can interpret natural language and semantic context to suggest corrections that deterministic code cannot handle.
 
-👉 This is why **LLM-based rules are required**. They can **interpret natural language and semantic context** to suggest corrections that deterministic code cannot handle.
-
-### Example Rule (LLM Plural)
+### Example Rule (LLM Infinitive Verbs)
 
 ```json
 {
-  "rule_code": "LLM01",
-  "summary": "Endpoints must be plural",
-  "scope": "paths",
+  "rule_code": "LLM02",
+  "summary": "Operation IDs must use verbs in the infinitive form",
+  "scope": "operations",
   "op": "update",
-  "selector": "$.paths",
-  "field": "/investment-fund",
-  "value": "/investment-funds",
-  "check_text": "Endpoints must be plural",
+  "selector": "$.paths.*.*",
+  "field": "operationId",
+  "value": "createCustomer",
+  "check_text": "Use infinitive form for operation verbs",
   "severity": "warning",
   "autofix": true,
-  "hints": ["Always use resource names in plural"],
+  "hints": ["Examples: createCustomer, updateAccount, deleteInvoice"],
   "oas_version": null
 }
 ```
 
 ### Why Deterministic Code Fails Here
 
-- **Regex**: Can only match patterns (e.g., lowercase letters, underscores). It **cannot decide** if a word is plural or singular.
-- **Enum/Ensure**: Can check against fixed sets, but we cannot predefine **all valid plural forms** (funds, accounts, customers).
-- **JSONPath**: Can locate fields but not decide if naming is correct.
+- Regex: Can only match patterns (e.g., lowerCamelCase). It cannot decide if a verb is conjugated (creates, deleting) or infinitive (create, delete).
+- Enum/Ensure: Can check against fixed sets, but we cannot predefine all possible verb forms.
+- JSONPath: Can locate fields but not decide if the verb is correct semantically.
 
-Thus, a **deterministic-only validator cannot enforce plural rules**.
+Thus, a deterministic-only validator cannot enforce infinitive verb rules.
 
 ### LLM Prompt Example
 
-The validator sends the **spec** and the **atomic rule** to the LLM with a deterministic instruction:
+The validator sends the spec and the atomic rule to the LLM with a deterministic instruction:
 
 ```text
 RETURN **only** the OpenAPI SPECIFICATION in JSON, already corrected according to the received rule.  
@@ -371,9 +370,9 @@ You will receive:
 - ONE OpenAPI specification in JSON (spec_json)
 
 Your task:
-1) **Interpret** rule_json, including semantic hints such as plural vs singular.  
-2) **Inspect** spec_json to find endpoints not aligned with plural naming.  
-3) **Apply** the correction by updating singular endpoints to plural.  
+1) **Interpret** rule_json, including semantic hints such as infinitive vs conjugated verbs.  
+2) **Inspect** spec_json to find operationIds not aligned with the infinitive form.  
+3) **Apply** the correction by updating operationIds to the proper infinitive form.  
 ```
 
 ### Dispatcher Code Comment
@@ -381,8 +380,8 @@ Your task:
 ```python
 if rule["rule_code"].startswith("LLM"):
     # 🚀 Semantic case: requires LLM interpretation
-    # Example: Plural vs singular in endpoints (/investment-fund → /investment-funds)
-    # Deterministic code cannot infer semantic correctness of words,
+    # Example: Infinitive verb form in operationId (createsCustomer → createCustomer)
+    # Deterministic code cannot infer semantic correctness of verb forms,
     # so we forward the spec and rule_json to the LLM prompt engine.
     corrected_spec = call_llm_with_rule(rule, spec)
 else:
@@ -390,7 +389,7 @@ else:
     corrected_spec = apply_deterministic_rule(rule, spec)
 ```
 
-👉 With this approach, **deterministic rules** guarantee structural integrity, while **LLM rules** handle semantic corrections, making the validator complete and hybrid.
+👉 With this approach, deterministic rules guarantee structural integrity, while LLM rules handle semantic corrections like verb conjugation, making the validator complete and hybrid.
 
 ---
 
