@@ -41,10 +41,12 @@ def detect_oas_version(text: str) -> str | None:
 
 # -------------------------
 # 2. Configure LLM Ollama
+# llama3:70b-instruct
+# mistral:instruct
 # -------------------------
 llm = ChatOllama(
     base_url="http://127.0.0.1:11434",
-    model="mistral:instruct",
+    model="llama3:70b-instruct",
     temperature=0.0,
     num_ctx=8192
 )
