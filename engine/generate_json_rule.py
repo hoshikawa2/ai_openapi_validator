@@ -312,9 +312,9 @@ def interpret_rule(rule_text: str, spec_text: str, idx: int):
     raw_json = raw[start:end]
 
     def sanitize(text: str) -> str:
-        text = text.replace("'", '"')  
-        text = re.sub(r",(\s*[}\]])", r"\1", text)  
-        text = text.replace("\\", "\\\\")  
+        text = text.replace("'", '"')
+        text = re.sub(r",(\s*[}\]])", r"\1", text)
+        text = text.replace("\\", "\\\\")
         return text
 
     try:
