@@ -478,8 +478,11 @@ def validate_rule(rule, spec, autofix_enabled=False):
                 if isinstance(node, dict):
                     # If the rule depends on type → check in the array
                     node_type = node.get("type")
+
                     if node_type and field not in ALLOWED_PROPERTIES.get(node_type, set()):
-                        continue  # ignores invalid fields for that type
+                        #continue  # ignores invalid fields for that type
+                        if node_type != "string":
+                            continue
 
                     if field == "items" and node.get("type") != "array":
                         continue
@@ -494,14 +497,12 @@ def validate_rule(rule, spec, autofix_enabled=False):
                         if autofix:
                             if value is not None:
                                 node[field] = value
-                            elif field == "description":
-                                node[field] = "TODO: fill description"
-                            elif field == "items":
-                                node[field] = {"type": "string"}
-                            elif field == "required":
-                                node[field] = []
                             else:
-                                node[field] = f"TODO: fill {field}"
+                                if field == "items":
+                                    node[field] = {"type": "string"}
+                                else:
+                                    if field == "required":
+                                        node[field] = []
 
                     elif node[field] is None or (isinstance(node[field], str) and not node[field].strip()):
                         results.append({
@@ -513,10 +514,8 @@ def validate_rule(rule, spec, autofix_enabled=False):
                         if autofix:
                             if value is not None:
                                 node[field] = value
-                            elif field == "description":
-                                node[field] = "TODO: fill description"
                             else:
-                                node[field] = f"TODO: fill {field}"
+                                node[field] = f"TODO: Fill {field}"
 
         # ---------------------------
         # unique
@@ -764,7 +763,7 @@ def run_validator(spec_file, rules_file,
         r["selector"] = fix_selector(r["selector"])
         r["scope"] = fix_scope(r["scope"])
         rules.append(r)
-    print("AI Rules", rules)
+    # print("AI Rules", rules)
 
     all_results = []
     for rule in rules:
