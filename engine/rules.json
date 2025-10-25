@@ -125,6 +125,7 @@
     "selector": "$.paths.*.*.responses",
     "methods": ["get", "put", "patch"],
     "field": "200",
+    "value": "OK",
     "check_text": "GET, PUT e PATCH devem ter response 200",
     "severity": "error",
     "autofix": true,
