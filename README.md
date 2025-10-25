@@ -186,7 +186,8 @@ Below are the main types supported by the tool:
 {
   "op": "ensure",
   "selector": "$.paths.*.*.responses",
-  "field": "200",
+  "field": "200"
+  "value": "OK",
   "check_text": "Responses must contain 200"
 }
 ```
