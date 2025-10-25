@@ -492,7 +492,9 @@ def validate_rule(rule, spec, autofix_enabled=False):
                             "severity": rule["severity"]
                         })
                         if autofix:
-                            if field == "description":
+                            if value is not None:
+                                node[field] = value
+                            elif field == "description":
                                 node[field] = "TODO: fill description"
                             elif field == "items":
                                 node[field] = {"type": "string"}
@@ -509,7 +511,9 @@ def validate_rule(rule, spec, autofix_enabled=False):
                             "severity": rule["severity"]
                         })
                         if autofix:
-                            if field == "description":
+                            if value is not None:
+                                node[field] = value
+                            elif field == "description":
                                 node[field] = "TODO: fill description"
                             else:
                                 node[field] = f"TODO: fill {field}"
