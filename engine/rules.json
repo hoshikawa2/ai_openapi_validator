@@ -285,5 +285,21 @@
       "Adicione a propriedade 'schemes' em cada servidor"
     ],
     "oas_version": null
+  },
+  {
+    "rule_code": "R404",
+    "summary": "Valida se a 'descrição' do atributo 'next' é fornecida",
+    "scope": "schemas",
+    "op": "ensure",
+    "selector": "$.components.schemas.Link.properties['next']",
+    "field": "description",
+    "value": "Link to next page",
+    "check_text": "Todas as respostas devem ter uma descrição para o atributo 'next'",
+    "severity": "warning",
+    "autofix": true,
+    "hints": [
+      "Adicione uma descrição para o atributo 'next'"
+    ],
+    "oas_version": null
   }
 ]
