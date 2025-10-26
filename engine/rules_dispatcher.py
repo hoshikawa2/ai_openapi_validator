@@ -503,6 +503,8 @@ def validate_rule(rule, spec, autofix_enabled=False):
                                 else:
                                     if field == "required":
                                         node[field] = []
+                                    else:
+                                        node[field] = f"TODO: fill {field}"
 
                     elif node[field] is None or (isinstance(node[field], str) and not node[field].strip()):
                         results.append({
