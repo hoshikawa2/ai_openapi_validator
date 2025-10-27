@@ -775,12 +775,12 @@ def run_validator(spec_file, rules_file,
     # -----------------------------
     # AI
     # -----------------------------
-    # print(f"\n🤖 AI Processing")
-    # ai_rules = analyze_with_llm_infinitive(spec)
-    # for r in ai_rules:
-    #     r["selector"] = fix_selector(r["selector"])
-    #     r["scope"] = fix_scope(r["scope"])
-    #     rules.append(r)
+    print(f"\n🤖 AI Processing")
+    ai_rules = analyze_with_llm_infinitive(spec)
+    for r in ai_rules:
+        r["selector"] = fix_selector(r["selector"])
+        r["scope"] = fix_scope(r["scope"])
+        rules.append(r)
     # print("AI Rules", rules)
 
     all_results = []
