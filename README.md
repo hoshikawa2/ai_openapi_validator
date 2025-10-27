@@ -192,6 +192,19 @@ Below are the main types supported by the tool:
 }
 ```
 
+## ❌ ensure_not
+- **Objective:** Ensure that a field must do not exist in the specification.
+- **Example:** cannot use */* on requestBody.
+- **Typical configuration:**
+```json
+{
+  "op": "ensure_not",
+  "selector": "$.paths.*.*.requestBody.content",
+  "field": "*/*",
+  "check_text": "Cannot use */* on requestBody"
+}
+```
+
 ---
 
 ## 🔤 regex

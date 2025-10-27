@@ -1,7 +1,9 @@
-/RegrasSpectralAPI.pdf
-/ai_openapi_validator.pdf
-/engine/other_rules.json
-/engine/rules_extra.json
-/engine/rules_extra_2025-10-01.json
-/engine/spec_corrigida.json
-/Testes/
+engine/rules.json
+engine/other_rules.json
+engine/report.json
+engine/rules_extra.json
+engine/spec_fixed.json
+engine/uploads/2.0.0-rc3_fees_modificado.json
+engine/outputs
+RegrasSpectralAPI.pdf
+

@@ -446,7 +446,7 @@ def validate_rule(rule, spec, autofix_enabled=False):
     try:
         matches = find_with_rule_selector(rule, spec)
 
-        if rule["op"] == "ensure" and matches == [] and (rule["oas_version"] is None or rule["oas_version"] == current_oas_version):
+        if (rule["op"] == "ensure" or rule["op"] == "ensure_not") and matches == [] and (rule["oas_version"] is None or rule["oas_version"] == current_oas_version):
             ensure_path(spec, rule["selector"], default_value={rule["field"]: "TODO"})
 
     except:
@@ -465,7 +465,7 @@ def validate_rule(rule, spec, autofix_enabled=False):
         # ---------------------------
         # ensure
         # ---------------------------
-        if op == "ensure":
+        if op == "ensure" or op == "ensure_not":
             allowed_methods = [m.lower() for m in rule.get("methods", [])]
             for m in matches:
                 # If there is a restriction on methods, validate first
@@ -475,6 +475,7 @@ def validate_rule(rule, spec, autofix_enabled=False):
                         continue
 
                 node = m.value
+
                 if isinstance(node, dict):
                     # If the rule depends on type → check in the array
                     node_type = node.get("type")
@@ -487,13 +488,15 @@ def validate_rule(rule, spec, autofix_enabled=False):
                     if field == "items" and node.get("type") != "array":
                         continue
 
-                    if field not in node:
-                        results.append({
+                    if (op == "ensure" and field not in node) or (op == "ensure_not" and field in node):
+                        new_result = {
                             "rule_code": rule["rule_code"],
                             "path": str(m.full_path),
                             "message": f"{rule['check_text']} (field '{field}' unavailable)",
                             "severity": rule["severity"]
-                        })
+                        }
+                        if new_result not in results:
+                            results.append(new_result)
                         if autofix:
                             if value is not None:
                                 node[field] = value
@@ -505,8 +508,7 @@ def validate_rule(rule, spec, autofix_enabled=False):
                                         node[field] = []
                                     else:
                                         node[field] = f"TODO: fill {field}"
-
-                    elif node[field] is None or (isinstance(node[field], str) and not node[field].strip()):
+                    elif (op == "ensure") and (node[field] is None or (isinstance(node[field], str) and not node[field].strip())):
                         results.append({
                             "rule_code": rule["rule_code"],
                             "path": str(m.full_path),
