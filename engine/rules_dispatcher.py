@@ -215,12 +215,26 @@ def fix_with_pattern(value: str, pattern: str) -> str:
     if pattern == r"^[a-z][a-zA-Z0-9]*$":  # camelCase
         new_val = re.sub(r"[-_]+([a-zA-Z])", lambda m: m.group(1).upper(), value)
         return new_val[0].lower() + new_val[1:]
+    elif pattern == r"^(?!x-)[a-z][a-z0-9]*([A-Z][a-z0-9]+)*$":  # camelCase (that do not start with x-)
+        if value.startswith("x-"):
+            return value
+        parts = re.split(r"[-_]+", value)
+        if not parts:
+            return value
+        fixed = parts[0].lower()
+        for p in parts[1:]:
+            fixed += p.capitalize()
+        return fixed
     elif pattern == r"^[a-z]+(_[a-z0-9]+)*$":  # snake_case
         new_val = re.sub(r"([A-Z])", r"_\1", value).lower()
         return new_val.strip("_")
     elif pattern == r"^[a-z][a-z0-9-]*$":  # kebab-case
         new_val = re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), value)
         return new_val.lower().replace("_", "-")
+    elif pattern == r"^x-[a-z0-9]+(?:-[a-z0-9]+)*$":  # custom header kebab-case
+        if not value.startswith("x-"):
+            return value
+        return value.lower().replace("_", "-")
     elif pattern == r"^[a-z]*$":  # only lowercases
         return re.sub(r"[^a-z]", "", value.lower())
     elif pattern == r"^[A-Z0-9_]+$":  # CONSTANT_CASE
@@ -449,8 +463,8 @@ def validate_rule(rule, spec, autofix_enabled=False):
         if (rule["op"] == "ensure" or rule["op"] == "ensure_not") and matches == [] and (rule["oas_version"] is None or rule["oas_version"] == current_oas_version):
             ensure_path(spec, rule["selector"], default_value={rule["field"]: "TODO"})
 
-    except:
-        print("[Error]", rule["selector"])
+    except Exception as ex:
+        print("[Error]", rule["selector"], ex)
         return None
 
     op = rule["op"]
@@ -761,12 +775,12 @@ def run_validator(spec_file, rules_file,
     # -----------------------------
     # AI
     # -----------------------------
-    print(f"\n🤖 AI Processing")
-    ai_rules = analyze_with_llm_infinitive(spec)
-    for r in ai_rules:
-        r["selector"] = fix_selector(r["selector"])
-        r["scope"] = fix_scope(r["scope"])
-        rules.append(r)
+    # print(f"\n🤖 AI Processing")
+    # ai_rules = analyze_with_llm_infinitive(spec)
+    # for r in ai_rules:
+    #     r["selector"] = fix_selector(r["selector"])
+    #     r["scope"] = fix_scope(r["scope"])
+    #     rules.append(r)
     # print("AI Rules", rules)
 
     all_results = []

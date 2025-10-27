@@ -238,6 +238,60 @@ Below are the main types supported by the tool:
 }
 ```
 
+>**Important Note:** The method **fix_with_pattern()** will implement the changes for **regex** and **value_regex**. Inside this code, there are several common treatments like **camelCase**, **kebab-base**, **snake_case** and specic treatments for headers with **x-** or without. You can customize your needs inside this code.
+
+```python
+def fix_with_pattern(value: str, pattern: str) -> str:
+    """Try to fix `value` so that it follows the `pattern`."""
+    regex = re.compile(pattern)
+
+    # If it is already ok, return
+    if regex.match(value):
+        return value
+
+    # Catalog of known patterns
+    if pattern == r"^[a-z][a-zA-Z0-9]*$":  # camelCase
+        new_val = re.sub(r"[-_]+([a-zA-Z])", lambda m: m.group(1).upper(), value)
+        return new_val[0].lower() + new_val[1:]
+    elif pattern == r"^(?!x-)[a-z][a-z0-9]*([A-Z][a-z0-9]+)*$":  # camelCase (that do not start with x-)
+        if value.startswith("x-"):
+            return value
+        parts = re.split(r"[-_]+", value)
+        if not parts:
+            return value
+        fixed = parts[0].lower()
+        for p in parts[1:]:
+            fixed += p.capitalize()
+        return fixed
+    elif pattern == r"^[a-z]+(_[a-z0-9]+)*$":  # snake_case
+        new_val = re.sub(r"([A-Z])", r"_\1", value).lower()
+        return new_val.strip("_")
+    elif pattern == r"^[a-z][a-z0-9-]*$":  # kebab-case
+        new_val = re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), value)
+        return new_val.lower().replace("_", "-")
+    elif pattern == r"^x-[a-z0-9]+(?:-[a-z0-9]+)*$":  # custom header kebab-case
+        if not value.startswith("x-"):
+            return value
+        return value.lower().replace("_", "-")
+    elif pattern == r"^[a-z]*$":  # only lowercases
+        return re.sub(r"[^a-z]", "", value.lower())
+    elif pattern == r"^[A-Z0-9_]+$":  # CONSTANT_CASE
+        return re.sub(r"[^A-Z0-9_]", "", value.upper())
+
+    # Generic heuristics
+    if "a-z" in pattern and not "A-Z" in pattern:
+        return re.sub(r"[^a-z0-9]", "", value.lower())
+    if "A-Z" in pattern and not "a-z" in pattern:
+        return re.sub(r"[^A-Z0-9]", "", value.upper())
+    if "-" in pattern:
+        return value.replace("_", "-").lower()
+    if "_" in pattern:
+        return value.replace("-", "_").lower()
+
+    # fallback: just try to force match
+    return value
+```
+
 ---
 
 ## 🎯 enum
