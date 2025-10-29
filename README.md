@@ -205,6 +205,200 @@ Below are the main types supported by the tool:
 }
 ```
 
+### 📘 Filters for `ensure`
+
+The function `apply_filter_generic(node, rule)` allows applying filters to **nodes** before executing the `ensure` operation.  
+These filters are configured inside the `filter` field of the rule JSON.
+
+---
+
+#### General structure
+
+```json
+{
+  "op": "ensure",
+  "selector": "$.paths.*.*.parameters[*]",
+  "filter": {
+    "<filter_type>": { ... }
+  },
+  "field": "type",
+  "value": "integer"
+}
+```
+
+---
+
+#### 🔹 Field filters (`field_*`)
+
+These filters operate on **dict nodes** (JSON objects).
+
+##### 1. `field_equals`
+
+Ensures a field has exactly one value.
+
+```json
+"filter": {
+  "field_equals": { "in": "query" }
+}
+```
+
+✅ Passes if `node["in"] == "query"`.
+
+---
+
+##### 2. `field_in_list`
+
+Ensures a field is contained in a list of values.
+
+```json
+"filter": {
+  "field_in_list": { "name": ["page", "pagina"] }
+}
+```
+
+✅ Passes if `node["name"]` is `"page"` or `"pagina"`.
+
+---
+
+##### 3. `field_not_in_list`
+
+Ensures a field is **not** in a list.
+
+```json
+"filter": {
+  "field_not_in_list": { "in": ["header"] }
+}
+```
+
+✅ Passes if `node["in"]` is **not** `"header"`.
+
+---
+
+#### 🔹 String filters
+
+These filters operate when the `node` is a **string**.
+
+##### 4. `startswith`
+
+Requires the string to start with a prefix.
+
+```json
+"filter": {
+  "startswith": "GET"
+}
+```
+
+✅ Passes if `node == "GET..."`.
+
+---
+
+##### 5. `not_startswith`
+
+Requires the string **not** to start with a prefix.
+
+```json
+"filter": {
+  "not_startswith": "x-"
+}
+```
+
+✅ Passes if `node` does not start with `"x-"`.
+
+---
+
+##### 6. `regex`
+
+Requires the string to match a regular expression.
+
+```json
+"filter": {
+  "regex": "^[a-z0-9\-]+$"
+}
+```
+
+✅ Passes if the string contains only lowercase letters, numbers, and hyphen.
+
+---
+
+##### 7. `not_regex`
+
+Requires the string **not** to match a regex.
+
+```json
+"filter": {
+  "not_regex": "deprecated"
+}
+```
+
+✅ Passes if the string does not match `"deprecated"`.
+
+---
+
+#### 🔹 Key filters (`key_*`)
+
+These filters operate on **dict nodes (objects)** and check their keys.
+
+##### 8. `key_startswith`
+
+Requires at least one key to start with the prefix.
+
+```json
+"filter": {
+  "key_startswith": "x-"
+}
+```
+
+✅ Passes if the object has a key like `"x-custom-header"`.
+
+---
+
+##### 9. `key_not_startswith`
+
+Requires that no key starts with the prefix.
+
+```json
+"filter": {
+  "key_not_startswith": "internal-"
+}
+```
+
+✅ Passes if the object does **not** have any key `"internal-..."`.
+
+---
+
+#### 🔹 Combining filters
+
+You can combine multiple filters. All must be satisfied (**logical AND**).
+
+```json
+"filter": {
+  "field_equals": { "in": "query" },
+  "field_in_list": { "name": ["page", "pagina"] },
+  "not_regex": "deprecated"
+}
+```
+
+✅ Passes only if:
+- `in == query`
+- `name` is `page` or `pagina`
+- and the string does not match `deprecated`.
+
+---
+
+#### 🔹 Quick reference
+
+| Filter              | Node type | Action                                                 |
+|---------------------|-----------|--------------------------------------------------------|
+| `field_equals`      | dict      | Field must equal a value                               |
+| `field_in_list`     | dict      | Field must be in a list                                |
+| `field_not_in_list` | dict      | Field must **not** be in a list                        |
+| `startswith`        | string    | Value must start with a prefix                         |
+| `not_startswith`    | string    | Value must **not** start with a prefix                 |
+| `regex`             | string    | Value must match regex                                 |
+| `not_regex`         | string    | Value must **not** match regex                         |
+| `key_startswith`    | dict      | At least one key must start with prefix                |
+| `key_not_startswith`| dict      | No key may start with prefix                           |
+
 ---
 
 ## 🔤 regex
