@@ -449,6 +449,56 @@ def match_field(name: str, field_pattern: str | None) -> bool:
         return True
     return fnmatch.fnmatch(name.lower(), field_pattern.lower())
 
+def apply_filter_generic(node, rule):
+    """
+    Supports:
+      - field_equals: { "in": "query" }
+      - field_in_list: { "name": ["page", "pagina"] }
+      - field_not_in_list: { "in": ["header"] }
+      - startswith / not_startswith
+      - key_startswith / key_not_startswith
+      - regex / not_regex
+    """
+    f = rule.get("filter")
+    if not f:
+        return True
+
+    if any(k.startswith("field_") for k in f.keys()) and isinstance(node, dict):
+        if "field_equals" in f:
+            for fld, val in f["field_equals"].items():
+                if node.get(fld) != val:
+                    return False
+        if "field_in_list" in f:
+            for fld, lst in f["field_in_list"].items():
+                if node.get(fld) not in lst:
+                    return False
+        if "field_not_in_list" in f:
+            for fld, lst in f["field_not_in_list"].items():
+                if node.get(fld) in lst:
+                    return False
+
+    if isinstance(node, str):
+        if "startswith" in f and not node.startswith(f["startswith"]):
+            return False
+        if "not_startswith" in f and node.startswith(f["not_startswith"]):
+            return False
+        if "regex" in f:
+            if not re.compile(f["regex"]).match(node):
+                return False
+        if "not_regex" in f:
+            if re.compile(f["not_regex"]).match(node):
+                return False
+
+    if isinstance(node, dict):
+        if "key_startswith" in f:
+            if not any(k.startswith(f["key_startswith"]) for k in node.keys()):
+                return False
+        if "key_not_startswith" in f:
+            if any(k.startswith(f["key_not_startswith"]) for k in node.keys()):
+                return False
+
+    return True
+
 def validate_rule(rule, spec, autofix_enabled=False):
     results = []
     current_oas_version = detect_oas_version_from_spec(spec)
@@ -476,6 +526,9 @@ def validate_rule(rule, spec, autofix_enabled=False):
     for m in matches:
         node = m.value
 
+        if not apply_filter_generic(node, rule):
+            continue
+
         # ---------------------------
         # ensure
         # ---------------------------
@@ -489,6 +542,9 @@ def validate_rule(rule, spec, autofix_enabled=False):
                         continue
 
                 node = m.value
+
+                if not apply_filter_generic(node, rule):
+                    continue
 
                 if isinstance(node, dict):
                     # If the rule depends on type → check in the array
