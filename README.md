@@ -188,6 +188,7 @@ Below are the main types supported by the tool:
   "selector": "$.paths.*.*.responses",
   "field": "200"
   "value": "OK",
+  "force": true,
   "check_text": "Responses must contain 200"
 }
 ```
@@ -204,6 +205,10 @@ Below are the main types supported by the tool:
   "check_text": "Cannot use */* on requestBody"
 }
 ```
+
+### 📘 Force
+
+You can use the force = true if the attribute already exists. If attribute exists, the value will be update.
 
 ### 📘 Filters for `ensure`
 

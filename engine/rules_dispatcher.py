@@ -522,6 +522,7 @@ def validate_rule(rule, spec, autofix_enabled=False):
     value = rule.get("value")
     methods = rule.get("methods")
     autofix = rule.get("autofix", False) and autofix_enabled
+    force = rule.get("force", False)
 
     for m in matches:
         node = m.value
@@ -578,7 +579,7 @@ def validate_rule(rule, spec, autofix_enabled=False):
                                         node[field] = []
                                     else:
                                         node[field] = f"TODO: fill {field}"
-                    elif (op == "ensure") and (node[field] is None or (isinstance(node[field], str) and not node[field].strip())):
+                    elif (op == "ensure") and ((node[field] is None or (isinstance(node[field], str) and not node[field].strip())) or force):
                         results.append({
                             "rule_code": rule["rule_code"],
                             "path": str(m.full_path),
@@ -587,7 +588,10 @@ def validate_rule(rule, spec, autofix_enabled=False):
                         })
                         if autofix:
                             if value is not None:
-                                node[field] = value
+                                if not force:
+                                    node[field] = value
+                                else:
+                                    node[field].update(value)
                             else:
                                 node[field] = f"TODO: Fill {field}"
 
