@@ -144,6 +144,8 @@ Each rule is a JSON object with the following fields:
 | **selector**  | JSONPath expression to find the specification section. |
 | **field**     | Target field for validation or modification. |
 | **value**     | Expected or suggested value (optional, depends on `op`). |
+| **filter**    | allows applying filters in ensure operation |
+| **force**     | force the value if the attribute exists |
 | **pattern**   | Regular expression used for validation (when `op=regex` or `value_regex`). |
 | **check_text**| Explanatory text of the issue. |
 | **severity**  | Severity (`info`, `warning`, `error`). |
