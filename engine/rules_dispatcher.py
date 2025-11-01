@@ -601,7 +601,10 @@ def validate_rule(rule, spec, autofix_enabled=False):
                                 if not force:
                                     node[field] = value
                                 else:
-                                    node[field].update(value)
+                                    try:
+                                        node[field].update(value)
+                                    except:
+                                        node[field] = next(iter(value.values())) if len(value) == 1 else value
                             else:
                                 node[field] = f"TODO: Fill {field}"
 
