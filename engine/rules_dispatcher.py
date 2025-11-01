@@ -476,6 +476,16 @@ def apply_filter_generic(node, rule):
             for fld, lst in f["field_not_in_list"].items():
                 if node.get(fld) in lst:
                     return False
+        if "field_regex" in f:
+            for fld, pattern in f["field_regex"].items():
+                val = str(node.get(fld, ""))
+                if not re.compile(pattern).match(val):
+                    return False
+        if "field_not_regex" in f:
+            for fld, pattern in f["field_not_regex"].items():
+                val = str(node.get(fld, ""))
+                if re.compile(pattern).match(val):
+                    return False
 
     if isinstance(node, str):
         if "startswith" in f and not node.startswith(f["startswith"]):
