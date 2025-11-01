@@ -394,17 +394,19 @@ You can combine multiple filters. All must be satisfied (**logical AND**).
 
 #### 🔹 Quick reference
 
-| Filter              | Node type | Action                                                 |
-|---------------------|-----------|--------------------------------------------------------|
-| `field_equals`      | dict      | Field must equal a value                               |
-| `field_in_list`     | dict      | Field must be in a list                                |
-| `field_not_in_list` | dict      | Field must **not** be in a list                        |
-| `startswith`        | string    | Value must start with a prefix                         |
-| `not_startswith`    | string    | Value must **not** start with a prefix                 |
-| `regex`             | string    | Value must match regex                                 |
-| `not_regex`         | string    | Value must **not** match regex                         |
-| `key_startswith`    | dict      | At least one key must start with prefix                |
-| `key_not_startswith`| dict      | No key may start with prefix                           |
+| Filter               | Node type | Action                                  |
+|----------------------|-----------|-----------------------------------------|
+| `field_equals`       | dict      | Field must equal a value                |
+| `field_in_list`      | dict      | Field must be in a list                 |
+| `field_not_in_list`  | dict      | Field must **not** be in a list         |
+| `startswith`         | string    | Value must start with a prefix          |
+| `not_startswith`     | string    | Value must **not** start with a prefix  |
+| `regex`              | string    | Value must match regex                  |
+| `not_regex`          | string    | Value must **not** match regex          |
+| `key_startswith`     | dict      | At least one key must start with prefix |
+| `key_not_startswith` | dict      | No key may start with prefix            |
+| `field_regex`        | dict      | Field must match regex                  |
+| `field_not_regex`    | dict      | Field must not match regex              |
 
 ---
 
