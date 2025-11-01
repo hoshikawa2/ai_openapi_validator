@@ -204,54 +204,79 @@ def rename_key_preserve_order(d, old_key, new_key):
     d.update(new_dict)
 
 def fix_with_pattern(value: str, pattern: str) -> str:
-    """Try to fix `value` so that it follows the `pattern`."""
+    """
+    Try to fix `value` so that it follows the `pattern`.
+    This version infers intent from the regex itself and performs minimal fixes.
+
+    If pattern contains a literal prefix (e.g., '^http://Caminho_backend/'),
+    that prefix will be enforced. Otherwise, case-style or structural rules apply.
+    """
     regex = re.compile(pattern)
 
-    # If it is already ok, return
+    # If already OK, return unchanged
     if regex.match(value):
         return value
 
-    # Catalog of known patterns
-    if pattern == r"^[a-z][a-zA-Z0-9]*$":  # camelCase
-        new_val = re.sub(r"[-_]+([a-zA-Z])", lambda m: m.group(1).upper(), value)
-        return new_val[0].lower() + new_val[1:]
-    elif pattern == r"^(?!x-)[a-z][a-z0-9]*([A-Z][a-z0-9]+)*$":  # camelCase (that do not start with x-)
-        if value.startswith("x-"):
-            return value
+    # --- Case 1: the pattern has a fixed literal prefix or base string ---
+    # (e.g. '^http://Caminho_backend/', '^/api/v[0-9]+', etc.)
+    literal_prefix = None
+    m_prefix = re.match(r'^\^([^.*+?$()[\]{}|\\]+)', pattern)
+    if m_prefix:
+        prefix_candidate = m_prefix.group(1)
+        # detect if it looks like a URL or path
+        if any(x in prefix_candidate for x in ["://", "/", "."]):
+            literal_prefix = prefix_candidate
+
+    if literal_prefix:
+        # Keep the suffix of original value after the first slash
+        parts = re.split(r"https?://[^/]+/", value, 1)
+        if len(parts) == 2:
+            suffix = parts[1]
+        else:
+            suffix = re.sub(r"^/*", "", value)
+        fixed = literal_prefix.rstrip("/") + "/" + suffix.lstrip("/")
+        fixed = re.sub(r"\.\*\$","", fixed)
+        return fixed
+
+    # --- Case 2: try to deduce intent from the pattern syntax ---
+    pattern_lc = pattern.lower()
+    is_url_like = "://" in pattern_lc or "/" in pattern_lc or "api" in pattern_lc
+    is_snake = "_" in pattern
+    is_kebab = "-" in pattern and not "_" in pattern
+    is_upper = re.search(r"[A-Z]", pattern) and pattern.isupper()
+    is_camel = re.search(r"[A-Z]", pattern) and not ("_" in pattern or "-" in pattern)
+
+    # URL/path-like → don't destroy structure
+    if is_url_like:
+        return value  # leave untouched; validator will just flag if not matching
+
+    # snake_case
+    if is_snake:
+        val = re.sub(r"([A-Z])", r"_\1", value).lower()
+        return val.strip("_")
+
+    # kebab-case
+    if is_kebab:
+        val = re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), value)
+        return val.lower().replace("_", "-")
+
+    # CONSTANT_CASE
+    if is_upper:
+        return re.sub(r"[^A-Z0-9_]", "_", value.upper())
+
+    # camelCase / PascalCase
+    if is_camel:
         parts = re.split(r"[-_]+", value)
         if not parts:
             return value
-        fixed = parts[0].lower()
-        for p in parts[1:]:
-            fixed += p.capitalize()
-        return fixed
-    elif pattern == r"^[a-z]+(_[a-z0-9]+)*$":  # snake_case
-        new_val = re.sub(r"([A-Z])", r"_\1", value).lower()
-        return new_val.strip("_")
-    elif pattern == r"^[a-z][a-z0-9-]*$":  # kebab-case
-        new_val = re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), value)
-        return new_val.lower().replace("_", "-")
-    elif pattern == r"^x-[a-z0-9]+(?:-[a-z0-9]+)*$":  # custom header kebab-case
-        if not value.startswith("x-"):
-            return value
-        return value.lower().replace("_", "-")
-    elif pattern == r"^[a-z]*$":  # only lowercases
-        return re.sub(r"[^a-z]", "", value.lower())
-    elif pattern == r"^[A-Z0-9_]+$":  # CONSTANT_CASE
-        return re.sub(r"[^A-Z0-9_]", "", value.upper())
+        first = parts[0].lower()
+        rest = "".join(p.capitalize() for p in parts[1:])
+        return first + rest
 
-    # Generic heuristics
-    if "a-z" in pattern and not "A-Z" in pattern:
-        return re.sub(r"[^a-z0-9]", "", value.lower())
-    if "A-Z" in pattern and not "a-z" in pattern:
-        return re.sub(r"[^A-Z0-9]", "", value.upper())
-    if "-" in pattern:
-        return value.replace("_", "-").lower()
-    if "_" in pattern:
-        return value.replace("-", "_").lower()
-
-    # fallback: just try to force match
-    return value
+    # --- Case 3: fallback heuristic ---
+    # Try to make the string as minimally altered as possible to match the pattern
+    cleaned = re.sub(r"[^a-zA-Z0-9/_:.~-]", "", value)
+    return cleaned
 
 def fix_selector(selector: str) -> str:
     # Guarantees prefix $
@@ -289,71 +314,99 @@ def fix_scope(scope: str) -> str:
 
 def ensure_path(spec: dict, selector: str, default_value: dict):
     """
-    Ensures the target node exists and injects default_value (e.g., {"field":"TODO"}).
-    Compatible with $.paths['/algo'] and simple jsonpath_ng selectors.
-
-    Note: This ensure is safe for dict-type nodes.
-    For selectors that end in an array (e.g., parameters[*]), it's best to have a specific ensure.
+    Ensures the target node exists and injects default_value.
+    Supports array fields using {"[url]": "TODO"} to indicate array-type nodes.
+    Example: selector="$.servers" + default_value={"[url]":"TODO"} → creates:
+             "servers": [ {"url": "TODO"} ]
     """
+    # Detecta modo array
+    array_mode = False
+    array_field = None
+    array_value = None
+
+    if isinstance(default_value, dict) and len(default_value) == 1:
+        k = next(iter(default_value.keys()))
+        if isinstance(k, str) and k.startswith("[") and k.endswith("]"):
+            array_mode = True
+            array_field = k.strip("[]")
+            array_value = default_value[k]
+
+    # Verifica se o selector contém um bracket como $.paths['/x']
     m = _BRACKET_RE.match(selector)
     if m:
         root_prop, key, suffix = m.group(1), m.group(2), m.group(3)
-
-        # create root if missing
         if root_prop not in spec or not isinstance(spec[root_prop], dict):
             spec[root_prop] = {}
-
-        # create key if missing
         if key not in spec[root_prop] or not isinstance(spec[root_prop][key], dict):
             spec[root_prop][key] = {}
 
         node = spec[root_prop][key]
 
-        # if there is a suffix like ".get.responses", we will create the dicts trail
-        # (we do not handle wildcards/arrays here)
+        # Cria dicionários intermediários (sufixo)
         if suffix:
-            parts = [p for p in suffix.split('.') if p]  # remove empty border
+            parts = [p for p in suffix.split('.') if p]
             cur = node
             for p in parts:
-                # stop if you hit a wildcard/array; this ensure is only for dict
                 if p.endswith(']') or p == '*' or p.endswith('*'):
                     break
                 if p not in cur or not isinstance(cur[p], dict):
                     cur[p] = {}
                 cur = cur[p]
-            # injects default at the level reached
-            if isinstance(cur, dict):
-                cur.update(default_value)
+        else:
+            cur = node
+
+        # Caso especial: array mode
+        if array_mode:
+            # Substitui o nó inteiro por uma lista
+            spec[root_prop][key] = [{array_field: array_value}]
             return spec
 
-        # no suffix: inject directly into the key node
-        if isinstance(node, dict):
-            node.update(default_value)
+        # Caso normal (dict)
+        if isinstance(cur, dict):
+            cur.update(default_value)
         return spec
 
-    # simple path jsonpath_ng → apply to matches and inject
+    # Caso selector simples via jsonpath_ng
     expr = parse(selector)
     matches = expr.find(spec)
+
     if not matches:
-        # create basic dict chains when possible (e.g., $.components.schemas)
-        # simple heuristic: $.a.b.c → create dictionaries if missing
+        # Cria o caminho se ainda não existe
         if selector.startswith("$."):
             parts = [p for p in selector[2:].split('.') if p and p != '*']
             cur = spec
             for p in parts:
-                if p.endswith(']'):  # arrays/indexes/wildcards: exit
+                if p.endswith(']'):
                     break
                 if p not in cur or not isinstance(cur[p], dict):
                     cur[p] = {}
                 cur = cur[p]
-            if isinstance(cur, dict):
+            if array_mode:
+                cur_key = parts[-1] if parts else None
+                if cur_key:
+                    spec[cur_key] = [{array_field: array_value}]
+                else:
+                    spec[selector.strip("$.")] = [{array_field: array_value}]
+            else:
                 cur.update(default_value)
         return spec
 
-    # matches exist → inject into each dict found
+    # Matches encontrados → aplica diretamente
     for m in matches:
-        if isinstance(m.value, dict):
-            m.value.update(default_value)
+        parent = m.context.value if m.context else spec
+        key = str(m.path)
+
+        if array_mode:
+            # substitui o nó encontrado diretamente pelo array
+            if isinstance(parent, dict):
+                parent[key] = [{array_field: array_value}]
+            elif isinstance(parent, list):
+                for i in range(len(parent)):
+                    parent[i] = {array_field: array_value}
+        else:
+            if isinstance(m.value, dict):
+                m.value.update(default_value)
+
     return spec
 
 def detect_oas_version_from_spec(spec: dict) -> str | None:
